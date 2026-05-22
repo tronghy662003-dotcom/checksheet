@@ -1,0 +1,2474 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Checksheet / 設備点検チェックシート</title>
+<!-- ═══ FIREBASE SDK ═══ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --blue:#1a5fa8;--blue-l:#e8f0fb;--blue-d:#0d3d6e;
+  --green:#2e7d32;--green-l:#e8f5e9;
+  --red:#c62828;--red-l:#ffebee;
+  --orange:#e65100;--orange-l:#fff3e0;
+  --gray:#607d8b;--gray-l:#f0f4f5;
+  --border:#d0d7de;--text:#1a2027;--muted:#5a6472;
+  --bg:#f4f6f8;--white:#fff;--r:10px;--rs:6px;
+}
+body{font-family:'Noto Sans','Segoe UI','Arial',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
+/* ── ログイン ── */
+#login-screen{position:fixed;inset:0;z-index:9999;background:var(--blue);display:flex;align-items:center;justify-content:center;padding:24px}
+.lcard{background:var(--white);border-radius:16px;padding:32px 28px;width:100%;max-width:340px;box-shadow:0 8px 40px rgba(0,0,0,.25)}
+.llogo{text-align:center;margin-bottom:24px}
+.llogo-icon{width:60px;height:60px;border-radius:16px;background:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:10px}
+.llogo h2{font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px}
+.llogo p{font-size:12px;color:var(--muted)}
+.lfield{margin-bottom:14px}
+.lfield label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.linput{width:100%;padding:12px 14px;font-size:15px;border:1.5px solid var(--border);border-radius:var(--rs);background:var(--white);color:var(--text);font-family:inherit;outline:none}
+.linput:focus{border-color:var(--blue)}
+.linput.err{border-color:var(--red);background:var(--red-l)}
+.lbtn{width:100%;padding:14px;font-size:15px;font-weight:700;background:var(--blue);color:white;border:none;border-radius:var(--rs);cursor:pointer;font-family:inherit;margin-top:6px}
+.lerr{text-align:center;font-size:13px;color:var(--red);font-weight:600;margin-top:12px;min-height:20px}
+.lattempts{text-align:center;font-size:11px;color:var(--muted);margin-top:8px}
+/* ── メイン ── */
+#main-app{display:none}
+.header{background:var(--blue);color:white;padding:14px 16px 12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.header h1{font-size:16px;font-weight:600}
+.header p{font-size:11px;opacity:.8;margin-top:2px}
+.tabs{display:flex;background:var(--white);border-bottom:1.5px solid var(--border);position:sticky;top:60px;z-index:99}
+.tab{flex:1;padding:11px 2px;font-size:12px;text-align:center;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;font-family:inherit;font-weight:500}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.content{padding:12px}
+.card{background:var(--white);border-radius:var(--r);border:1px solid var(--border);margin-bottom:10px;overflow:hidden}
+.ctitle{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:9px 14px;background:var(--gray-l);border-bottom:1px solid var(--border)}
+.frow{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid #eef0f2}
+.frow:last-child{border-bottom:none}
+.flabel{font-size:12px;color:var(--muted);white-space:nowrap;width:100px;flex-shrink:0}
+.finput{flex:1;padding:7px 10px;font-size:13px;border:1px solid var(--border);border-radius:var(--rs);background:var(--white);color:var(--text);font-family:inherit;outline:none}
+.finput:focus{border-color:var(--blue)}
+.shift-sel{display:flex;border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;flex:1}
+.shift-btn{flex:1;padding:9px 4px;font-size:13px;font-weight:600;border:none;background:var(--white);color:var(--muted);cursor:pointer;font-family:inherit}
+.shift-btn.day.on{background:#fff8e1;color:#f57f17}
+.shift-btn.night.on{background:#e8eaf6;color:#283593}
+.pwrap{padding:8px 14px 6px;display:flex;align-items:center;gap:10px;background:var(--white);border-radius:var(--r);border:1px solid var(--border);margin-bottom:10px}
+.pbar{flex:1;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+.pfill{height:100%;background:var(--blue);border-radius:3px;transition:width .3s}
+.ptxt{font-size:12px;color:var(--muted);white-space:nowrap}
+/* 点検項目 */
+.iitem{padding:12px 14px;border-bottom:1px solid #eef0f2}
+.iitem:last-child{border-bottom:none}
+.itop{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.ino{width:26px;height:26px;border-radius:50%;background:var(--blue-l);color:var(--blue-d);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.iinfo{flex:1;min-width:0}
+.iname{font-size:14px;font-weight:600}
+.isub{font-size:11px;color:var(--muted);margin-top:2px}
+.ialert{display:inline-block;font-size:10px;background:var(--orange-l);color:var(--orange);border:1px solid #ffcc80;border-radius:4px;padding:1px 6px;margin-top:3px}
+.dnrow{display:flex;align-items:center;gap:8px}
+.dnbtns{display:flex;gap:6px;flex:1}
+.dnbtn{flex:1;padding:10px 4px;font-size:12px;font-weight:600;border:1.5px solid var(--border);border-radius:var(--rs);background:var(--white);cursor:pointer;color:var(--muted);font-family:inherit;touch-action:manipulation}
+.dnbtn.ok{background:var(--green-l);color:var(--green);border-color:var(--green)}
+.dnbtn.ng{background:var(--red-l);color:var(--red);border-color:var(--red)}
+.dnbtn.na{background:var(--gray-l);color:var(--gray);border-color:var(--gray)}
+.nwrap{flex:1;display:flex;align-items:center;border:1.5px solid var(--border);border-radius:var(--rs);background:var(--white);cursor:pointer;padding:10px 14px;gap:8px}
+.nwrap.in-range{border-color:var(--green);background:var(--green-l)}
+.nwrap.out-range{border-color:var(--red);background:var(--red-l)}
+.nval{flex:1;font-size:16px;font-weight:700}
+.nstat{font-size:10px;font-weight:600;padding:3px 8px;border-radius:10px;white-space:nowrap}
+.nstat.in-range{background:var(--green-l);color:var(--green)}
+.nstat.out-range{background:var(--red-l);color:var(--red)}
+.nstat.empty{background:var(--gray-l);color:var(--muted);font-size:9px}
+.remark{margin-top:8px;width:100%;padding:7px 10px;font-size:12px;border:1px solid var(--border);border-radius:var(--rs);background:#fafafa;color:var(--text);font-family:inherit;resize:none;outline:none}
+/* 保存ボタン */
+.savebtn{display:block;width:100%;margin:14px 0 4px;padding:16px;font-size:15px;font-weight:700;background:var(--blue);color:white;border:none;border-radius:12px;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(26,95,168,.35)}
+.savebtn:disabled{background:#9ab0cc;box-shadow:none;cursor:not-allowed}
+.savehint{text-align:center;font-size:12px;color:var(--muted);margin-top:6px;padding-bottom:8px}
+.weeklybtn{display:block;width:100%;margin-bottom:16px;padding:13px;font-size:13px;font-weight:700;background:#3949ab;color:white;border:none;border-radius:12px;cursor:pointer;font-family:inherit}
+/* テンキー */
+.np-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;align-items:center;justify-content:center}
+.np-ov.open{display:flex}
+.np-box{background:var(--white);border-radius:16px;width:calc(100% - 32px);max-width:380px;padding:16px 16px 24px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.np-lbl{font-size:12px;color:var(--muted);margin-bottom:6px}
+.np-drow{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.np-disp{flex:1;font-size:28px;font-weight:700;background:var(--gray-l);border-radius:var(--rs);padding:10px 14px;min-height:52px}
+.np-disp.in-range{background:var(--green-l);color:var(--green)}
+.np-disp.out-range{background:var(--red-l);color:var(--red)}
+.np-unit{font-size:14px;color:var(--muted)}
+.np-range{font-size:11px;color:var(--muted);margin-bottom:12px;text-align:center}
+.np-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.npk{padding:16px 4px;font-size:20px;font-weight:600;border:1.5px solid var(--border);border-radius:var(--rs);background:var(--white);cursor:pointer;font-family:inherit;text-align:center;touch-action:manipulation}
+.npk.back{color:var(--red);border-color:var(--red);font-size:16px}
+.np-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.npact{padding:14px;font-size:14px;font-weight:700;border:none;border-radius:var(--rs);cursor:pointer;font-family:inherit}
+.npact.cancel{background:var(--gray-l);color:var(--muted)}
+.npact.confirm{background:var(--blue);color:white}
+/* 履歴・集計 */
+.hitem{padding:12px 14px;border-bottom:1px solid #eef0f2;cursor:pointer}
+.hitem:last-child{border-bottom:none}
+.hdate{font-size:14px;font-weight:600}
+.hmeta{font-size:12px;color:var(--muted);margin-top:2px}
+.badges{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+.bok{background:var(--green-l);color:var(--green)}
+.bng{background:var(--red-l);color:var(--red)}
+.bna{background:var(--gray-l);color:var(--gray)}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.scard{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px}
+.slbl{font-size:11px;color:var(--muted);margin-bottom:4px}
+.sval{font-size:24px;font-weight:700}
+.ssub{font-size:11px;color:var(--muted);margin-top:2px}
+.ngwrap{padding:12px 14px;border-bottom:1px solid #eef0f2}
+.ngwrap:last-child{border-bottom:none}
+.ngrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:12px}
+.ngcnt{font-weight:700;color:var(--red)}
+.ngbar{height:5px;background:#f5d0d0;border-radius:3px;overflow:hidden}
+.ngfill{height:100%;background:var(--red);border-radius:3px}
+.expbtn{display:block;width:100%;margin:10px 0 0;padding:13px;font-size:14px;font-weight:700;background:#1a7a40;color:white;border:none;border-radius:var(--r);cursor:pointer;font-family:inherit;text-align:center}
+/* モーダル */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:flex-end}
+.modal-ov.open{display:flex}
+.mbox{background:var(--white);border-radius:16px 16px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:16px}
+.mtitle{font-size:15px;font-weight:700;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.mrow{display:grid;grid-template-columns:1fr 70px 70px;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:12px;gap:4px;align-items:center}
+.mrow:last-child{border-bottom:none}
+.mkey{color:var(--muted)}
+.md,.mn{text-align:center;font-weight:600;font-size:12px}
+.mcls{width:100%;margin-top:14px;padding:12px;background:var(--blue);color:white;border:none;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.vok{color:var(--green)}.vng{color:var(--red)}.vna{color:var(--gray)}.vem{color:#ccc}
+/* 共有 */
+.surl{width:100%;padding:8px 10px;font-size:12px;border:1px solid var(--border);border-radius:var(--rs);background:#f8f9fa;color:var(--text);word-break:break-all;margin-bottom:8px;resize:none;font-family:inherit}
+.scopy{width:100%;padding:10px;font-size:13px;font-weight:600;background:var(--blue);color:white;border:none;border-radius:var(--rs);cursor:pointer;font-family:inherit}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px}
+/* 週次 */
+.wm-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:700;align-items:center;justify-content:center}
+.wm-ov.open{display:flex}
+.wm-box{background:var(--white);border-radius:16px;width:calc(100% - 32px);max-width:360px;padding:20px}
+.wm-title{font-size:15px;font-weight:700;margin-bottom:8px}
+.wm-desc{font-size:12px;color:var(--muted);margin-bottom:12px}
+.wm-input{width:100%;padding:10px 12px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--rs);font-family:inherit;outline:none;margin-bottom:12px}
+.wm-input:focus{border-color:var(--blue)}
+.wm-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wm-act{padding:12px;font-size:14px;font-weight:700;border:none;border-radius:var(--rs);cursor:pointer;font-family:inherit}
+.wm-act.cancel{background:var(--gray-l);color:var(--muted)}
+.wm-act.ok{background:var(--blue);color:white}
+.wl-item{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:.5px solid #eef0f2;font-size:12px}
+.wl-item:last-child{border-bottom:none}
+.wbadge{background:#e8eaf6;color:#283593;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px}
+/* 言語ボタン */
+.langbtn{position:fixed;bottom:16px;right:16px;z-index:300;background:var(--white);border:1.5px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--blue);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#323232;color:white;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+/* ── ダッシュボード ── */
+#home-page{display:none;min-height:100vh;background:var(--bg)}
+.home-header{background:linear-gradient(135deg,#0d3d6e 0%,#1a5fa8 100%);color:white;padding:20px 16px 16px;text-align:center}
+.home-header h1{font-size:18px;font-weight:700;margin-bottom:4px}
+.home-header p{font-size:12px;opacity:.8}
+.home-header .user-bar{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11px;opacity:.8}
+.cat-tabs{display:none!important;gap:8px;padding:12px;background:var(--white);border-bottom:1px solid var(--border);overflow-x:auto}
+.cat-tab{flex-shrink:0;padding:8px 14px;font-size:12px;font-weight:600;border-radius:20px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap}
+.cat-tab.active{background:var(--blue);color:white;border-color:var(--blue)}
+.cat-tab.disabled{opacity:.45;cursor:not-allowed}
+.layout-header{padding:12px 16px 8px;background:var(--white);margin-bottom:8px;border-bottom:1px solid var(--border)}
+.layout-header h2{font-size:14px;font-weight:700;color:var(--text)}
+.layout-header p{font-size:12px;color:var(--muted);margin-top:3px}
+.eq-section{padding:0 8px 12px}
+.eq-section-title{font-size:11px;font-weight:700;color:var(--white);background:var(--blue-d);padding:6px 12px;border-radius:var(--rs);margin:8px 0 6px;letter-spacing:.5px}
+.eq-line-wrap{margin-bottom:6px}
+.eq-line-label{font-size:11px;font-weight:700;color:var(--muted);padding:3px 0 3px 4px;width:72px;flex-shrink:0}
+.eq-line-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.eq-btn{padding:7px 8px;font-size:11px;font-weight:600;border:1.5px solid var(--border);border-radius:var(--rs);background:var(--white);color:var(--muted);cursor:default;font-family:inherit;white-space:nowrap;opacity:.55;min-width:68px;text-align:center;transition:all .2s}
+.eq-btn.active{background:var(--blue);color:white;border-color:var(--blue);opacity:1;cursor:pointer;box-shadow:0 2px 8px rgba(26,95,168,.3)}
+.eq-btn.active:active{transform:scale(.96)}
+/* 未点検 = デフォルト青 */
+.eq-btn.st-none{background:var(--blue);color:white;border-color:var(--blue);opacity:1;cursor:pointer}
+/* 点検済みOK（全項目OK）*/
+.eq-btn.st-ok{background:#2e7d32;color:white;border-color:#1b5e20;opacity:1;cursor:pointer;box-shadow:0 2px 8px rgba(46,125,50,.35)}
+/* 点検済みNG（NG項目あり）*/
+.eq-btn.st-ng{background:#c62828;color:white;border-color:#b71c1c;opacity:1;cursor:pointer;box-shadow:0 2px 8px rgba(198,40,40,.35)}
+/* 片方のみ完了（D or N）*/
+.eq-btn.st-partial{background:#e65100;color:white;border-color:#bf360c;opacity:1;cursor:pointer;box-shadow:0 2px 8px rgba(230,81,0,.3)}
+.eq-btn.active:active,.eq-btn.st-none:active,.eq-btn.st-ok:active,.eq-btn.st-ng:active,.eq-btn.st-partial:active{transform:scale(.96)}
+/* チェックシートページ */
+#checksheet-page{display:none}
+.cs-back-bar{background:var(--blue-d);padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.cs-back-btn{background:rgba(255,255,255,.2);border:none;color:white;font-size:12px;font-weight:600;padding:5px 12px;border-radius:12px;cursor:pointer;font-family:inherit}
+.cs-back-title{color:white;font-size:13px;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">
+      <div class="llogo-icon">🔒</div>
+      <h2>管理記録システム</h2>
+      <p style="font-size:13px;font-weight:700;color:var(--blue);margin:4px 0 2px">OGINO VIETNAM TU SON</p>
+      <p>Hệ thống quản lý hồ sơ</p>
+    </div>
+    <div class="lfield">
+      <label>Tên người dùng / ユーザー名</label>
+      <input class="linput" type="text" id="lu" placeholder="" autocomplete="off"
+        onkeydown="if(event.key==='Enter')document.getElementById('lp').focus()">
+    </div>
+    <div class="lfield" style="margin-bottom:8px">
+      <label>Mật khẩu / パスワード</label>
+      <div style="position:relative">
+        <input class="linput" type="password" id="lp" placeholder="" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter')doLogin()">
+        <button onclick="document.getElementById('lp').type=document.getElementById('lp').type==='password'?'text':'password'"
+          style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0">👁</button>
+      </div>
+    </div>
+    <div id="lerr" class="lerr"></div>
+    <div id="lattempts" class="lattempts"></div>
+    <button class="lbtn" id="lbtn" onclick="doLogin()">Đăng nhập</button>
+  </div>
+</div>
+
+<!-- ダッシュボード（ホーム） -->
+<div id="home-page">
+  <div class="home-header">
+    <h1 id="home-title">管理記録システム</h1>
+    <p>OGINO VIETNAM TU SON</p>
+    <div id="home-date" style="margin-top:8px;font-size:13px;font-weight:700;background:rgba(255,255,255,.15);padding:5px 16px;border-radius:20px;display:inline-block;letter-spacing:.5px"></div>
+    <div class="user-bar">
+      <span id="home-user">👤 admin</span>
+      <button onclick="doLogout()" style="background:rgba(255,255,255,.2);border:none;color:white;font-size:11px;padding:3px 10px;border-radius:10px;cursor:pointer;font-family:inherit" id="home-logout">ログアウト</button>
+    </div>
+  </div>
+  
+  <!-- カテゴリータブ -->
+<div style="display:flex;background:#f5f7fa;border-bottom:2px solid #1a5fa8">
+  <button id="tab-equip" onclick="switchCategory('equip')" style="flex:1;padding:10px 6px;font-size:12px;font-weight:700;background:#1a5fa8;color:white;border:none;cursor:pointer;font-family:inherit;transition:all .2s"><span id="tab-equip-main">⚙️ 設備点検</span><br><span id="tab-equip-sub" style='font-size:10px;font-weight:400'>Kiểm tra thiết bị</span></button>
+  <button id="tab-jig" onclick="switchCategory('jig')" style="flex:1;padding:10px 6px;font-size:12px;font-weight:700;background:#f5f7fa;color:#555;border:none;border-left:1px solid #ddd;cursor:pointer;font-family:inherit;transition:all .2s"><span id="tab-jig-main">🔩 治具点検</span><br><span id="tab-jig-sub" style='font-size:10px;font-weight:400'>Kiểm tra đồ gá</span></button>
+</div>
+<div style="padding:8px 14px;background:#e3f2fd;border-bottom:1px solid #bbdefb;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+  <span id="qr-info-text" style="font-size:12px;color:#1565c0;font-weight:600">📱 QRコードで設備を直接呼び出せます</span>
+  <button id="qr-print-btn" onclick="openQRPage()" style="background:#1a5fa8;color:white;border:none;padding:6px 16px;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📋 QRコード一覧を印刷</button>
+</div>
+<div class="layout-header">
+    <h2 id="layout-title">設備点検一覧</h2>
+    <p id="layout-desc">点検する設備をクリックしてください</p>
+  </div>
+  <!-- ステータス凡例 -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;padding:8px 12px 4px;background:var(--white);border-bottom:1px solid var(--border)" id="home-legend">
+    <span id="leg-title" style="font-size:10px;font-weight:600;color:var(--muted)">凡例:</span>
+    <span id="leg-none" style="font-size:10px;background:var(--blue);color:white;padding:2px 8px;border-radius:10px">▶ 未点検</span>
+    <span id="leg-ok"   style="font-size:10px;background:#2e7d32;color:white;padding:2px 8px;border-radius:10px">✓ 完了 OK</span>
+    <span id="leg-ng"   style="font-size:10px;background:#c62828;color:white;padding:2px 8px;border-radius:10px">✗ NG あり</span>
+    <span id="leg-partial" style="font-size:10px;background:#e65100;color:white;padding:2px 8px;border-radius:10px">◑ 一部完了</span>
+  </div>
+  <div id="eq-grid"></div>
+</div>
+
+<!-- チェックシートページ -->
+<div id="checksheet-page">
+  <div class="cs-back-bar" onclick="showHome()">
+    <button class="cs-back-btn">← 戻る</button>
+    <span class="cs-back-title" id="cs-back-title">11Line OP20/30</span>
+  </div>
+
+  <!-- 既存のメインアプリ -->
+  <div id="main-app">
+    <div class="header">
+      <h1 id="app-title">Checksheet kiểm tra thiết bị</h1>
+      <p id="app-sub" style="display:none"></p>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="t-input"   onclick="ST('input')">Nhập liệu</button>
+      <button class="tab"        id="t-history" onclick="ST('history')">Lịch sử</button>
+      <button class="tab"        id="t-stats"   onclick="ST('stats')">Thống kê</button>
+      <button class="tab"        id="t-share"   onclick="ST('share')">Chia sẻ</button>
+    </div>
+    <div id="p-input"   class="content"></div>
+    <div id="p-history" class="content" style="display:none"></div>
+    <div id="p-stats"   class="content" style="display:none"></div>
+    <div id="p-share"   class="content" style="display:none"></div>
+  </div>
+</div>
+
+<!-- テンキー -->
+<div class="np-ov" id="npOv">
+  <div class="np-box">
+    <div class="np-lbl" id="npLbl"></div>
+    <div class="np-drow">
+      <div class="np-disp" id="npDisp">—</div>
+      <div class="np-unit" id="npUnit"></div>
+    </div>
+    <div class="np-range" id="npRange"></div>
+    <div class="np-grid">
+      <button class="npk" onclick="npP('7')">7</button><button class="npk" onclick="npP('8')">8</button><button class="npk" onclick="npP('9')">9</button>
+      <button class="npk" onclick="npP('4')">4</button><button class="npk" onclick="npP('5')">5</button><button class="npk" onclick="npP('6')">6</button>
+      <button class="npk" onclick="npP('1')">1</button><button class="npk" onclick="npP('2')">2</button><button class="npk" onclick="npP('3')">3</button>
+      <button class="npk" onclick="npP('.')">.</button><button class="npk" onclick="npP('0')">0</button><button class="npk back" onclick="npBk()">⌫</button>
+    </div>
+    <div class="np-acts">
+      <button class="npact cancel" id="npCancel" onclick="npCl()">Hủy</button>
+      <button class="npact confirm" id="npConfirm" onclick="npOK()">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<!-- 詳細モーダル -->
+<div class="modal-ov" id="modOv" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="mbox">
+    <div class="mtitle" id="modTitle"></div>
+    <div id="modBody"></div>
+    <button class="mcls" id="modCls" onclick="document.getElementById('modOv').classList.remove('open')">Đóng</button>
+  </div>
+</div>
+
+<!-- 週次確認モーダル -->
+<div class="wm-ov" id="wmOv" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="wm-box">
+    <div class="wm-title" id="wmTitle">Xác nhận tuần</div>
+    <div class="wm-desc" id="wmDesc">Nhập tên cấp trên để xác nhận</div>
+    <input class="wm-input" type="text" id="wmInput" placeholder="Tên cấp trên"
+      onkeydown="if(event.key==='Enter')wmOK()">
+    <div class="wm-acts">
+      <button class="wm-act cancel" id="wmCancel" onclick="document.getElementById('wmOv').classList.remove('open')">Hủy</button>
+      <button class="wm-act ok" id="wmOKBtn" onclick="wmOK()">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<!-- 言語切替ボタン -->
+<button class="langbtn" id="langbtn" onclick="toggleLang()">日本語</button>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================
+   設備データ定義
+   ===================================================== */
+const EQ_SECTIONS = [
+  {
+    id: 'lines1to10',
+    label: {ja:'1Line ～ 10Line', vn:'Line 1 ～ Line 10'},
+    lines: [
+      {line:'1Line',  ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'2Line',  ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'3Line',  ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'4Line',  ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'5Line',  ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'6Line',  ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'7Line',  ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'8Line',  ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'9Line',  ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'10Line', ops:['OP20','OP30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+    ]
+  },
+  {
+    id: 'lines11to14',
+    label: {ja:'11Line ～ 14Line', vn:'Line 11 ～ Line 14'},
+    lines: [
+      {line:'11Line', ops:['OP20/30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'12Line', ops:['OP20/30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'13Line', ops:['OP20/30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+      {line:'14Line', ops:['OP20/30','OP40','OP50','OP70-1','OP70-2','OP70-3','OP70-4','OP80','OP100','OP110']},
+    ]
+  },
+  {
+    id: 'lines15to18',
+    label: {ja:'15Line ～ 18Line', vn:'Line 15 ～ Line 18'},
+    lines: [
+      {line:'15Line', ops:['OP20/30','OP60','OP70-1','OP70-2','OP70-3','OP75','OP100']},
+      {line:'16Line', ops:['OP20/30','OP60','OP70-1','OP70-2','OP70-3','OP75','OP100']},
+      {line:'17Line', ops:['OP20/30','OP60','OP70-1','OP70-2','OP70-3','OP75','OP100']},
+      {line:'18Line', ops:['OP20/30','OP60','OP70-1','OP70-2','OP70-3','OP75','OP100']},
+    ]
+  },
+  {
+    id: 'postProcess',
+    label: {ja:'後工程', vn:'Công đoạn sau'},
+    lines: [
+      {line:'1Line', ops:['後工程']},
+      {line:'2Line', ops:['後工程']},
+      {line:'3Line', ops:['後工程']},
+      {line:'4Line', ops:['後工程']},
+      {line:'5Line', ops:['後工程']},
+    ]
+  }
+];
+
+// アクティブな設備（チェックシートあり）
+// key: "Line_OP" 形式
+const ACTIVE_EQUIPMENT = {
+  '11Line_OP20/30':  {title:'11Line OP20/30',  titleVn:'Line 11 OP20/30',  op:'OP20/30',
+    procJa:'OP20/30 旋盤機',          procVn:'OP20/30 Gia công tiện',
+    machJa:'NC旋盤',                   machVn:'Tiện NC',                dept:'OVT'},
+  '11Line_OP40':     {title:'11Line OP40',     titleVn:'Line 11 OP40',     op:'OP40',
+    procJa:'OP-40 水洗い・回転脱水',  procVn:'OP-40 Rửa nước/sấy quay',
+    machJa:'回転脱水機（AUTOTECH）',   machVn:'Máy sấy quay (AUTOTECH)', dept:'OVT'},
+  '11Line_OP50':     {title:'11Line OP50',     titleVn:'Line 11 OP50',     op:'OP50',
+    procJa:'OP-50 刻印（QRコード）',  procVn:'OP-50 Khắc dấu (QR code)',
+    machJa:'刻印機（自社製）',         machVn:'Máy khắc laser',          dept:'OVT'},
+  '11Line_OP70-1':   {title:'11Line OP70-1',   titleVn:'Line 11 OP70-1',   op:'OP70-1',
+    procJa:'OP70 CNC 1号機',          procVn:'OP70 CNC Máy số 1',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '11Line_OP70-2':   {title:'11Line OP70-2',   titleVn:'Line 11 OP70-2',   op:'OP70-2',
+    procJa:'OP70 CNC 2号機',          procVn:'OP70 CNC Máy số 2',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '11Line_OP70-3':   {title:'11Line OP70-3',   titleVn:'Line 11 OP70-3',   op:'OP70-3',
+    procJa:'OP70 CNC 3号機',          procVn:'OP70 CNC Máy số 3',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '11Line_OP70-4':   {title:'11Line OP70-4',   titleVn:'Line 11 OP70-4',   op:'OP70-4',
+    procJa:'OP70 CNC 4号機',          procVn:'OP70 CNC Máy số 4',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '11Line_OP80':     {title:'11Line OP80',      titleVn:'Line 11 OP80',     op:'OP80',
+    procJa:'OP-80 荒洗浄',            procVn:'OP-80 Rửa thô',
+    machJa:'洗浄機（森合精機）',       machVn:'Máy rửa (Morigai Seiki)', dept:'OVT'},
+  '11Line_OP100':    {title:'11Line OP100',     titleVn:'Line 11 OP100',    op:'OP100',
+    procJa:'OP100 旋盤加工',          procVn:'OP100 Gia công tiện',
+    machJa:'NC旋盤',                   machVn:'Tiện NC',                dept:'OVT'},
+  '11Line_OP110':    {title:'11Line OP110',     titleVn:'Line 11 OP110',    op:'OP110',
+    procJa:'OP-110 水洗い・回転脱水', procVn:'OP-110 Rửa nước/sấy quay',
+    machJa:'回転脱水機（AUTOTECH）',   machVn:'Máy sấy quay (AUTOTECH)', dept:'OVT'},
+  // 12Line〜14Line (11Lineと同じOP構成・点検項目)
+  '12Line_OP20/30':  {title:'12Line OP20/30',  titleVn:'Line 12 OP20/30',  op:'OP20/30',
+    procJa:'OP20/30 旋盤機',          procVn:'OP20/30 Gia công tiện',
+    machJa:'NC旋盤',                   machVn:'Tiện NC',                dept:'OVT'},
+  '12Line_OP40':     {title:'12Line OP40',      titleVn:'Line 12 OP40',     op:'OP40',
+    procJa:'OP-40 水洗い・回転脱水',  procVn:'OP-40 Rửa nước/sấy quay',
+    machJa:'回転脱水機（AUTOTECH）',   machVn:'Máy sấy quay (AUTOTECH)', dept:'OVT'},
+  '12Line_OP50':     {title:'12Line OP50',      titleVn:'Line 12 OP50',     op:'OP50',
+    procJa:'OP-50 刻印（QRコード）',  procVn:'OP-50 Khắc dấu (QR code)',
+    machJa:'刻印機（自社製）',         machVn:'Máy khắc laser',          dept:'OVT'},
+  '12Line_OP70-1':   {title:'12Line OP70-1',    titleVn:'Line 12 OP70-1',   op:'OP70-1',
+    procJa:'OP70 CNC 1号機',          procVn:'OP70 CNC Máy số 1',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '12Line_OP70-2':   {title:'12Line OP70-2',    titleVn:'Line 12 OP70-2',   op:'OP70-2',
+    procJa:'OP70 CNC 2号機',          procVn:'OP70 CNC Máy số 2',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '12Line_OP70-3':   {title:'12Line OP70-3',    titleVn:'Line 12 OP70-3',   op:'OP70-3',
+    procJa:'OP70 CNC 3号機',          procVn:'OP70 CNC Máy số 3',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '12Line_OP70-4':   {title:'12Line OP70-4',    titleVn:'Line 12 OP70-4',   op:'OP70-4',
+    procJa:'OP70 CNC 4号機',          procVn:'OP70 CNC Máy số 4',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '12Line_OP80':     {title:'12Line OP80',       titleVn:'Line 12 OP80',     op:'OP80',
+    procJa:'OP-80 荒洗浄',            procVn:'OP-80 Rửa thô',
+    machJa:'洗浄機（森合精機）',       machVn:'Máy rửa (Morigai Seiki)', dept:'OVT'},
+  '12Line_OP100':    {title:'12Line OP100',      titleVn:'Line 12 OP100',    op:'OP100',
+    procJa:'OP100 旋盤加工',          procVn:'OP100 Gia công tiện',
+    machJa:'NC旋盤',                   machVn:'Tiện NC',                dept:'OVT'},
+  '12Line_OP110':    {title:'12Line OP110',      titleVn:'Line 12 OP110',    op:'OP110',
+    procJa:'OP-110 水洗い・回転脱水', procVn:'OP-110 Rửa nước/sấy quay',
+    machJa:'回転脱水機（AUTOTECH）',   machVn:'Máy sấy quay (AUTOTECH)', dept:'OVT'},
+  '13Line_OP20/30':  {title:'13Line OP20/30',  titleVn:'Line 13 OP20/30',  op:'OP20/30',
+    procJa:'OP20/30 旋盤機',          procVn:'OP20/30 Gia công tiện',
+    machJa:'NC旋盤',                   machVn:'Tiện NC',                dept:'OVT'},
+  '13Line_OP40':     {title:'13Line OP40',      titleVn:'Line 13 OP40',     op:'OP40',
+    procJa:'OP-40 水洗い・回転脱水',  procVn:'OP-40 Rửa nước/sấy quay',
+    machJa:'回転脱水機（AUTOTECH）',   machVn:'Máy sấy quay (AUTOTECH)', dept:'OVT'},
+  '13Line_OP50':     {title:'13Line OP50',      titleVn:'Line 13 OP50',     op:'OP50',
+    procJa:'OP-50 刻印（QRコード）',  procVn:'OP-50 Khắc dấu (QR code)',
+    machJa:'刻印機（自社製）',         machVn:'Máy khắc laser',          dept:'OVT'},
+  '13Line_OP70-1':   {title:'13Line OP70-1',    titleVn:'Line 13 OP70-1',   op:'OP70-1',
+    procJa:'OP70 CNC 1号機',          procVn:'OP70 CNC Máy số 1',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '13Line_OP70-2':   {title:'13Line OP70-2',    titleVn:'Line 13 OP70-2',   op:'OP70-2',
+    procJa:'OP70 CNC 2号機',          procVn:'OP70 CNC Máy số 2',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '13Line_OP70-3':   {title:'13Line OP70-3',    titleVn:'Line 13 OP70-3',   op:'OP70-3',
+    procJa:'OP70 CNC 3号機',          procVn:'OP70 CNC Máy số 3',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '13Line_OP70-4':   {title:'13Line OP70-4',    titleVn:'Line 13 OP70-4',   op:'OP70-4',
+    procJa:'OP70 CNC 4号機',          procVn:'OP70 CNC Máy số 4',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '13Line_OP80':     {title:'13Line OP80',       titleVn:'Line 13 OP80',     op:'OP80',
+    procJa:'OP-80 荒洗浄',            procVn:'OP-80 Rửa thô',
+    machJa:'洗浄機（森合精機）',       machVn:'Máy rửa (Morigai Seiki)', dept:'OVT'},
+  '13Line_OP100':    {title:'13Line OP100',      titleVn:'Line 13 OP100',    op:'OP100',
+    procJa:'OP100 旋盤加工',          procVn:'OP100 Gia công tiện',
+    machJa:'NC旋盤',                   machVn:'Tiện NC',                dept:'OVT'},
+  '13Line_OP110':    {title:'13Line OP110',      titleVn:'Line 13 OP110',    op:'OP110',
+    procJa:'OP-110 水洗い・回転脱水', procVn:'OP-110 Rửa nước/sấy quay',
+    machJa:'回転脱水機（AUTOTECH）',   machVn:'Máy sấy quay (AUTOTECH)', dept:'OVT'},
+  '14Line_OP20/30':  {title:'14Line OP20/30',  titleVn:'Line 14 OP20/30',  op:'OP20/30',
+    procJa:'OP20/30 旋盤機',          procVn:'OP20/30 Gia công tiện',
+    machJa:'NC旋盤',                   machVn:'Tiện NC',                dept:'OVT'},
+  '14Line_OP40':     {title:'14Line OP40',      titleVn:'Line 14 OP40',     op:'OP40',
+    procJa:'OP-40 水洗い・回転脱水',  procVn:'OP-40 Rửa nước/sấy quay',
+    machJa:'回転脱水機（AUTOTECH）',   machVn:'Máy sấy quay (AUTOTECH)', dept:'OVT'},
+  '14Line_OP50':     {title:'14Line OP50',      titleVn:'Line 14 OP50',     op:'OP50',
+    procJa:'OP-50 刻印（QRコード）',  procVn:'OP-50 Khắc dấu (QR code)',
+    machJa:'刻印機（自社製）',         machVn:'Máy khắc laser',          dept:'OVT'},
+  '14Line_OP70-1':   {title:'14Line OP70-1',    titleVn:'Line 14 OP70-1',   op:'OP70-1',
+    procJa:'OP70 CNC 1号機',          procVn:'OP70 CNC Máy số 1',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '14Line_OP70-2':   {title:'14Line OP70-2',    titleVn:'Line 14 OP70-2',   op:'OP70-2',
+    procJa:'OP70 CNC 2号機',          procVn:'OP70 CNC Máy số 2',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '14Line_OP70-3':   {title:'14Line OP70-3',    titleVn:'Line 14 OP70-3',   op:'OP70-3',
+    procJa:'OP70 CNC 3号機',          procVn:'OP70 CNC Máy số 3',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '14Line_OP70-4':   {title:'14Line OP70-4',    titleVn:'Line 14 OP70-4',   op:'OP70-4',
+    procJa:'OP70 CNC 4号機',          procVn:'OP70 CNC Máy số 4',
+    machJa:'マシニングセンタ',         machVn:'Trung tâm gia công',      dept:'OVT'},
+  '14Line_OP80':     {title:'14Line OP80',       titleVn:'Line 14 OP80',     op:'OP80',
+    procJa:'OP-80 荒洗浄',            procVn:'OP-80 Rửa thô',
+    machJa:'洗浄機（森合精機）',       machVn:'Máy rửa (Morigai Seiki)', dept:'OVT'},
+  '14Line_OP100':    {title:'14Line OP100',      titleVn:'Line 14 OP100',    op:'OP100',
+    procJa:'OP100 旋盤加工',          procVn:'OP100 Gia công tiện',
+    machJa:'NC旋盤',                   machVn:'Tiện NC',                dept:'OVT'},
+  '14Line_OP110':    {title:'14Line OP110',      titleVn:'Line 14 OP110',    op:'OP110',
+    procJa:'OP-110 水洗い・回転脱水', procVn:'OP-110 Rửa nước/sấy quay',
+    machJa:'回転脱水機（AUTOTECH）',   machVn:'Máy sấy quay (AUTOTECH)', dept:'OVT'},
+  // 今後ここに他設備を追加
+};
+
+/* =====================================================
+   ナビゲーション
+   ===================================================== */
+let currentPage = 'home'; // 'home' or 'checksheet'
+let currentEquipment = null;
+
+function showHome(){
+  currentPage='home';
+  document.getElementById('home-page').style.display='block';
+  document.getElementById('checksheet-page').style.display='none';
+  document.getElementById('langbtn').style.display='block';
+  updateHomeUI(); // 戻った時にステータスを再評価して色を更新
+}
+
+function showChecksheet(eqKey){
+  const eq=getActiveEquipment()[eqKey];
+  if(!eq){ showToast(LANG==='ja'?'データが見つかりません':'Không tìm thấy dữ liệu'); return; }
+  currentEquipment=eqKey;
+  currentPage='checksheet';
+  // 設備に応じた点検項目とデータを読み込む
+  loadEquipmentItems(eqKey);
+  records=JSON.parse(localStorage.getItem(eqStKey(eqKey))||'[]');
+  weekly=JSON.parse(localStorage.getItem(eqWkKey(eqKey))||'[]');
+  CV={};
+  CM={date:td(),shift:'D',op:''};
+  document.getElementById('home-page').style.display='none';
+  const csp=document.getElementById('checksheet-page');
+  csp.style.display='block';
+  const ma=document.getElementById('main-app');
+  if(ma)ma.style.display='block';
+  const aeqMap=getActiveEquipment();
+  const ceq=aeqMap[eqKey];
+  const modePrefix=currentMode==='jig'?(LANG==='ja'?'【治具】':'【Đồ gá】'):'';
+  const bt=document.getElementById('cs-back-title');
+  if(bt)bt.textContent=modePrefix+(LANG==='ja'?ceq.title:ceq.titleVn);
+  updateUI();
+  ST('input');
+  renderInput();
+}
+
+function showComingSoon(){
+  showToast(LANG==='ja'?'今後追加予定です':'Sẽ được cập nhật sau');
+}
+
+/* =====================================================
+   ホームページ描画
+   ===================================================== */
+function updateHomeUI(){
+  const isJA=LANG==='ja';
+  const user=sessionStorage.getItem('lu')||'admin';
+  const ht=document.getElementById('home-title');
+  if(ht)ht.textContent=isJA?'管理記録システム':'Hệ thống quản lý hồ sơ';
+  const hu=document.getElementById('home-user');
+  if(hu)hu.textContent='👤 '+escH(user);
+  const hl=document.getElementById('home-logout');
+  if(hl)hl.textContent=isJA?'ログアウト':'Đăng xuất';
+  // 日付表示
+  const dateEl=document.getElementById('home-date');
+  if(dateEl){
+    const now=new Date();
+    const days_ja=['日','月','火','水','木','金','土'];
+    const days_vn=['CN','T2','T3','T4','T5','T6','T7'];
+    const dow=isJA?days_ja[now.getDay()]:days_vn[now.getDay()];
+    dateEl.textContent=isJA
+      ?`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${dow}）`
+      :`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()} (${dow})`;
+  }
+  const lt=document.getElementById('layout-title');
+  if(lt){
+    if(currentMode==='jig'){
+      lt.textContent=isJA?'治具点検一覧':'Danh sách đồ gá kiểm tra';
+    }else{
+      lt.textContent=isJA?'設備点検一覧':'Danh sách thiết bị kiểm tra';
+    }
+  }
+  const ldesc=document.getElementById('layout-desc');
+  if(ldesc){
+    if(currentMode==='jig'){
+      ldesc.textContent=isJA?'点検する治具をクリックしてください':'Nhấp vào đồ gá cần kiểm tra';
+    }else{
+      ldesc.textContent=isJA?'点検する設備をクリックしてください':'Nhấp vào thiết bị cần kiểm tra';
+    }
+  }
+  // layout-desc updated above
+  const ct=document.getElementById('cat-equipment');
+  if(ct)ct.textContent=isJA?'設備点検チェックシート':'Checksheet KT thiết bị';
+  const cj=document.getElementById('cat-jig');
+  if(cj)cj.textContent=isJA?'治具点検チェックシート':'Checksheet KT đồ gá';
+  const ck=document.getElementById('cat-tool');
+  if(ck)ck.textContent=isJA?'刃具交換記録':'Ghi chép thay dao';
+  const bb=document.querySelector('.cs-back-btn');
+  if(bb)bb.textContent=isJA?'← 戻る':'← Quay lại';
+  // QRバー
+  const _qrI=document.getElementById('qr-info-text');
+  if(_qrI) _qrI.textContent=isJA?'📱 QRコードで設備を直接呼び出せます':'📱 Có thể mở thiết bị trực tiếp bằng QR code';
+  const _qrB=document.getElementById('qr-print-btn');
+  if(_qrB) _qrB.textContent=isJA?'📋 QRコード一覧を印刷':'📋 In danh sách QR code';
+  // タブボタン
+  const _tEM=document.getElementById('tab-equip-main');if(_tEM) _tEM.textContent=isJA?'⚙️ 設備点検':'⚙️ KT Thiết bị';
+  const _tES=document.getElementById('tab-equip-sub'); if(_tES) _tES.textContent=isJA?'設備点検チェックシート':'Checksheet KT thiết bị';
+  const _tJM=document.getElementById('tab-jig-main'); if(_tJM) _tJM.textContent=isJA?'🔩 治具点検':'🔩 KT Đồ gá';
+  const _tJS=document.getElementById('tab-jig-sub');  if(_tJS) _tJS.textContent=isJA?'治具点検チェックシート':'Checksheet KT đồ gá';
+  // 凡例
+  const _lT=document.getElementById('leg-title');   if(_lT) _lT.textContent=isJA?'凡例:':'Chú thích:';
+  const _lN=document.getElementById('leg-none');    if(_lN) _lN.textContent=isJA?'▶ 未点検':'▶ Chưa KT';
+  const _lO=document.getElementById('leg-ok');      if(_lO) _lO.textContent=isJA?'✓ 完了 OK':'✓ Hoàn tất OK';
+  const _lG=document.getElementById('leg-ng');      if(_lG) _lG.textContent=isJA?'✗ NG あり':'✗ Có NG';
+  const _lP=document.getElementById('leg-partial'); if(_lP) _lP.textContent=isJA?'◑ 一部完了':'◑ Một phần';
+  renderEquipmentGrid();
+}
+
+
+function switchCategory(mode){
+  currentMode = mode;
+  const isJA = LANG==='ja';
+  // タブの見た目を切り替え
+  const te=document.getElementById('tab-equip');
+  const tj=document.getElementById('tab-jig');
+  if(te&&tj){
+    if(mode==='equip'){
+      te.style.background='#1a5fa8';te.style.color='white';
+      tj.style.background='#f5f7fa';tj.style.color='#555';
+    }else{
+      tj.style.background='#2e7d32';tj.style.color='white';
+      te.style.background='#f5f7fa';te.style.color='#555';
+    }
+  }
+  // タイトル・サブテキストを即座に更新
+  // タブのテキストも更新
+  const teM=document.getElementById('tab-equip-main');if(teM) teM.textContent=isJA?'⚙️ 設備点検':'⚙️ KT Thiết bị';
+  const teS=document.getElementById('tab-equip-sub');if(teS) teS.textContent=isJA?'設備点検チェックシート':'Checksheet KT thiết bị';
+  const tjM=document.getElementById('tab-jig-main');if(tjM) tjM.textContent=isJA?'🔩 治具点検':'🔩 KT Đồ gá';
+  const tjS=document.getElementById('tab-jig-sub');if(tjS) tjS.textContent=isJA?'治具点検チェックシート':'Checksheet KT đồ gá';
+  const lt=document.getElementById('layout-title');
+  if(lt) lt.textContent=isJA?(mode==='jig'?'治具点検一覧':'設備点検一覧'):(mode==='jig'?'Danh sách đồ gá kiểm tra':'Danh sách thiết bị kiểm tra');
+  const ldsc=document.getElementById('layout-desc');
+  if(ldsc) ldsc.textContent=isJA?(mode==='jig'?'点検する治具をクリックしてください':'点検する設備をクリックしてください'):(mode==='jig'?'Nhấp vào đồ gá cần kiểm tra':'Nhấp vào thiết bị cần kiểm tra');
+  // 凡例：治具モードでも表示（色分け共通）
+  // QRバー・タブの多言語切替
+  const qrInfo=document.getElementById('qr-info-text');
+  if(qrInfo) qrInfo.textContent=isJA?'📱 QRコードで設備を直接呼び出せます':'📱 Có thể mở thiết bị trực tiếp bằng QR code';
+  const qrBtn=document.getElementById('qr-print-btn');
+  if(qrBtn) qrBtn.textContent=isJA?'📋 QRコード一覧を印刷':'📋 In danh sách QR code';
+  const teMain=document.getElementById('tab-equip-main');
+  if(teMain) teMain.textContent=isJA?'⚙️ 設備点検':'⚙️ KT Thiết bị';
+  const teSub=document.getElementById('tab-equip-sub');
+  if(teSub) teSub.textContent=isJA?'設備点検チェックシート':'Checksheet KT thiết bị';
+  const tjMain=document.getElementById('tab-jig-main');
+  if(tjMain) tjMain.textContent=isJA?'🔩 治具点検':'🔩 KT Đồ gá';
+  const tjSub=document.getElementById('tab-jig-sub');
+  if(tjSub) tjSub.textContent=isJA?'治具点検チェックシート':'Checksheet KT đồ gá';
+    // 凡例の多言語切替
+  const legTitle=document.getElementById('leg-title');
+  if(legTitle) legTitle.textContent=isJA?'凡例:':'Chú thích:';
+  const legNone=document.getElementById('leg-none');
+  if(legNone) legNone.textContent=isJA?'▶ 未点検':'▶ Chưa KT';
+  const legOk=document.getElementById('leg-ok');
+  if(legOk) legOk.textContent=isJA?'✓ 完了 OK':'✓ Hoàn tất OK';
+  const legNg=document.getElementById('leg-ng');
+  if(legNg) legNg.textContent=isJA?'✗ NG あり':'✗ Có NG';
+  const legPart=document.getElementById('leg-partial');
+  if(legPart) legPart.textContent=isJA?'◑ 一部完了':'◑ Một phần';
+    const leg=document.getElementById('home-legend');
+  if(leg) leg.style.display='flex';
+  // グリッド再描画
+  renderEquipmentGrid();
+}
+
+function renderEquipmentGrid(){
+  const grid=document.getElementById('eq-grid');
+  if(!grid)return;
+  const isJA=LANG==='ja';
+  let h='';
+  if(currentMode==='jig'){
+    // 治具点検グリッド（LINE別）
+    JIG_SECTIONS.forEach(sec=>{
+      h+=`<div class="eq-section"><div class="eq-section-title">${isJA?sec.label.ja:sec.label.vn}</div>`;
+      sec.lines.forEach(lineData=>{
+        h+=`<div class="eq-line-wrap"><div class="eq-line-row"><span class="eq-line-label">${lineData.line}</span>`;
+        lineData.ops.forEach(op=>{
+          // op は文字列 または {key, disabled} オブジェクト
+          const opKey = (typeof op==='string') ? op : op.key;
+          const isDisabled = (typeof op==='object') && op.disabled;
+          const key = lineData.line+'_'+opKey;
+          const eq = JIG_ACTIVE_EQUIPMENT[key];
+          if(eq && !isDisabled){
+            const st=getTodayStatus(key);
+            h+=`<button class="eq-btn st-${st}" data-eq-key="${key}">${getStatusLabel(st,isJA,opKey)}</button>`;
+          }
+          // disabled ボタンは表示しない
+        });
+        h+='</div></div>';
+      });
+      h+='</div>';
+    });
+  } else {
+    EQ_SECTIONS.forEach(sec=>{
+      h+=`<div class="eq-section">
+        <div class="eq-section-title">${isJA?sec.label.ja:sec.label.vn}</div>`;
+      sec.lines.forEach(lineData=>{
+        h+=`<div class="eq-line-wrap"><div class="eq-line-row">
+          <span class="eq-line-label">${lineData.line}</span>`;
+        lineData.ops.forEach(op=>{
+          const key=lineData.line+'_'+op;
+          const eq=ACTIVE_EQUIPMENT[key];
+          if(eq){
+            const st=getTodayStatus(key);
+            h+=`<button class="eq-btn st-${st}" data-eq-key="${key}">${getStatusLabel(st,isJA,op)}</button>`;
+          }else{
+            h+=`<button class="eq-btn" disabled>${op}</button>`;
+          }
+        });
+        h+=`</div></div>`;
+      });
+      h+='</div>';
+    });
+  }
+  grid.innerHTML=h;
+
+  // イベント委譲：グリッド全体にクリックリスナーを1つだけ設定
+  grid.onclick=function(e){
+    const btn=e.target.closest('button[data-eq-key]');
+    if(!btn)return;
+    const key=btn.getAttribute('data-eq-key');
+    if(key)showChecksheet(key);
+  };
+}
+
+/* =====================================================
+   認証設定
+   ===================================================== */
+const AUTH={u:'admin',p:'1234',max:5,lockSec:60,sk:'login_sess',tk:'login_tries',lk:'login_lock'};
+
+function h32(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return h.toString(36)}
+const HU=h32(AUTH.u), HP=h32(AUTH.p);
+
+function isLocked(){return Date.now()<parseInt(localStorage.getItem(AUTH.lk)||'0')}
+function lockSec(){return Math.ceil((parseInt(localStorage.getItem(AUTH.lk)||'0')-Date.now())/1000)}
+function getTries(){return parseInt(localStorage.getItem(AUTH.tk)||'0')}
+function isLoggedIn(){return sessionStorage.getItem(AUTH.sk)==='1'}
+
+function doLogin(){
+  if(isLocked()){showLoginErr('Bị khóa. Thử lại sau '+lockSec()+'s');return}
+  const u=(document.getElementById('lu').value||'').trim();
+  const p=(document.getElementById('lp').value||'');
+  if(!u){document.getElementById('lu').classList.add('err');return}
+  if(!p){document.getElementById('lp').classList.add('err');return}
+  document.getElementById('lu').classList.remove('err');
+  document.getElementById('lp').classList.remove('err');
+  if(h32(u)===HU&&h32(p)===HP){
+    localStorage.removeItem(AUTH.tk);localStorage.removeItem(AUTH.lk);
+    sessionStorage.setItem(AUTH.sk,'1');
+    sessionStorage.setItem('lu',u);
+    startApp();
+  }else{
+    const tries=getTries()+1;localStorage.setItem(AUTH.tk,tries);
+    const rem=AUTH.max-tries;
+    if(tries>=AUTH.max){
+      localStorage.setItem(AUTH.lk,Date.now()+AUTH.lockSec*1000);
+      localStorage.removeItem(AUTH.tk);
+      showLoginErr('Sai '+AUTH.max+' lần. Khóa '+AUTH.lockSec+'s');
+      const btn=document.getElementById('lbtn');btn.disabled=true;
+      setTimeout(()=>{btn.disabled=false;document.getElementById('lerr').textContent='';document.getElementById('lattempts').textContent=''},AUTH.lockSec*1000);
+    }else{
+      showLoginErr('Sai tên/mật khẩu.');
+      document.getElementById('lattempts').textContent='Còn '+rem+' lần thử';
+    }
+    document.getElementById('lp').value='';document.getElementById('lp').focus();
+  }
+}
+function showLoginErr(msg){document.getElementById('lerr').textContent=msg}
+
+function startApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('langbtn').textContent=LANG==='vn'?'日本語':'Tiếng Việt';
+  syncAndStart(); // ← khởi Firebase rồi mới vào app
+}
+
+function doLogout(){
+  sessionStorage.removeItem(AUTH.sk);
+  localStorage.removeItem('app_lang');
+  location.reload();
+}
+
+/* =====================================================
+   言語システム
+   ===================================================== */
+let LANG=localStorage.getItem('app_lang')||'vn';
+
+const TX={
+  // ヘッダー
+  app_title: {vn:'Hệ thống quản lý hồ sơ', ja:'管理記録システム'},
+  app_sub:   {vn:'Tiện NC — OP20/30', ja:'NC旋盤 — OP20/30'},
+  logout_q:  {vn:'Đăng xuất?', ja:'ログアウトしますか？'},
+  logout:    {vn:'Đăng xuất', ja:'ログアウト'},
+  // タブ
+  t_input:   {vn:'Nhập liệu', ja:'点検入力'},
+  t_history: {vn:'Lịch sử',   ja:'履歴'},
+  t_stats:   {vn:'Thống kê',  ja:'集計'},
+  t_share:   {vn:'Chia sẻ',   ja:'共有'},
+  // 基本情報
+  sec_basic: {vn:'THÔNG TIN CƠ BẢN', ja:'基本情報'},
+  f_date:    {vn:'Ngày', ja:'日付'},
+  f_shift:   {vn:'Ca làm việc', ja:'シフト'},
+  f_day:     {vn:'☀ Ca ngày', ja:'☀ 昼番'},
+  f_night:   {vn:'🌙 Ca đêm', ja:'🌙 夜番'},
+  f_plant:   {vn:'Tên CĐ', ja:'工程名'},
+  f_line:    {vn:'Line', ja:'LINE'},
+  f_opD:     {vn:'Người phụ trách', ja:'担当者'},
+  f_opN:     {vn:'Ca đêm (N)', ja:'夜番担当者'},
+  f_sup:     {vn:'Xác nhận cấp trên', ja:'上司確認'},
+  // 点検
+  sec_items: {vn:'HẠNG MỤC KIỂM TRA', ja:'点検項目'},
+  // ボタン
+  btn_ok:    {vn:'✓ Bình thường', ja:'✓ OK'},
+  btn_ng:    {vn:'✗ Bất thường', ja:'✗ NG'},
+  btn_na:    {vn:'— Không áp dụng', ja:'— 非該当'},
+  btn_save:  {vn:'Lưu dữ liệu', ja:'保存する'},
+  btn_weekly:{vn:'📋 Xác nhận tuần (Cấp trên)', ja:'📋 週次上司確認'},
+  // 数値
+  in_range:  {vn:'Trong phạm vi ✓', ja:'範囲内 ✓'},
+  out_range: {vn:'Ngoài phạm vi ✗', ja:'範囲外 ✗'},
+  tap:       {vn:'— Chạm để nhập', ja:'— タップして入力'},
+  // 進捗
+  all_done:  {vn:'✓ Lưu dữ liệu', ja:'✓ 保存する'},
+  remain_pre:{vn:'Còn ', ja:'あと'},
+  remain_suf:{vn:' mục chưa điền', ja:'項目未入力'},
+  // テンキー
+  np_cancel: {vn:'Hủy', ja:'キャンセル'},
+  np_ok:     {vn:'Xác nhận', ja:'確定'},
+  // メッセージ
+  saved:     {vn:'Đã lưu ✓', ja:'保存しました ✓'},
+  need_date: {vn:'Vui lòng nhập ngày', ja:'日付を入力してください'},
+  need_all:  {vn:'mục chưa điền!', ja:'項目が未入力です！'},
+  no_data:   {vn:'Chưa có dữ liệu', ja:'データがありません'},
+  // モーダル
+  close:     {vn:'Đóng', ja:'閉じる'},
+  // 詳細
+  d_plant:   {vn:'Trực thuộc', ja:'所属'},
+  d_sup:     {vn:'Cấp trên', ja:'上司'},
+  d_opD:     {vn:'Ca ngày', ja:'昼番'},
+  d_opN:     {vn:'Ca đêm', ja:'夜番'},
+  col_d:     {vn:'D (Ca ngày)', ja:'D（昼番）'},
+  col_n:     {vn:'N (Ca đêm)', ja:'N（夜番）'},
+  not_in:    {vn:'Chưa nhập', ja:'未記入'},
+  // 集計
+  s_total:   {vn:'Tổng số lần KT', ja:'総点検回数'},
+  s_ok:      {vn:'Tỉ lệ bình thường', ja:'OK率'},
+  s_ng:      {vn:'Số lần bất thường', ja:'NG件数'},
+  s_period:  {vn:'Thời gian ghi nhận', ja:'記録期間'},
+  s_times:   {vn:'lần ghi nhận', ja:'件の記録'},
+  s_need:    {vn:'mục cần xác nhận', ja:'要確認項目'},
+  s_top:     {vn:'Hạng mục bất thường TOP', ja:'NG多発項目 TOP'},
+  s_recent:  {vn:'Kiểm tra gần đây', ja:'直近の点検'},
+  s_export:  {vn:'📊 Xuất file Excel', ja:'📊 Excelで出力'},
+  // 共有
+  qr_title:  {vn:'QR Code truy cập', ja:'QRコードでアクセス'},
+  qr_desc:   {vn:'Dùng camera quét QR code để mở', ja:'カメラでQRコードをスキャン'},
+  link_title:{vn:'Link chia sẻ', ja:'共有リンク'},
+  copy:      {vn:'📋 Sao chép', ja:'📋 コピー'},
+  copied:    {vn:'Đã sao chép ✓', ja:'コピーしました ✓'},
+  // 週次確認
+  w_title:   {vn:'Xác nhận tuần (Cấp trên)', ja:'週次上司確認'},
+  w_desc:    {vn:'Nhập tên cấp trên để xác nhận tuần này', ja:'上司名を入力して今週の確認をしてください'},
+  w_ph:      {vn:'Tên cấp trên', ja:'上司名'},
+  w_cancel:  {vn:'Hủy', ja:'キャンセル'},
+  w_ok:      {vn:'Xác nhận', ja:'確認'},
+  w_saved:   {vn:'Đã lưu xác nhận tuần ✓', ja:'週次確認を保存しました ✓'},
+  w_history: {vn:'Lịch sử xác nhận tuần', ja:'週次確認履歴'},
+  w_none:    {vn:'Chưa có lịch sử xác nhận tuần', ja:'週次確認の記録がありません'},
+  // Excel
+  ex_gen:    {vn:'Đang tạo Excel...', ja:'Excel生成中...'},
+  ex_done:   {vn:'Đã xuất file Excel ✓', ja:'Excelを出力しました ✓'},
+  ex_fail:   {vn:'Chưa có dữ liệu', ja:'データがありません'},
+};
+function L(k){return(TX[k]||{})[LANG]||(TX[k]||{}).vn||k}
+
+function toggleLang(){
+  LANG=LANG==='vn'?'ja':'vn';
+  localStorage.setItem('app_lang',LANG);
+  document.getElementById('langbtn').textContent=LANG==='vn'?'日本語':'Tiếng Việt';
+  if(currentPage==='home'){
+    updateHomeUI();
+  }else{
+    updateUI();
+    const bt=document.getElementById('cs-back-title');
+    if(bt&&currentEquipment){const eq=ACTIVE_EQUIPMENT[currentEquipment];if(eq)bt.textContent=LANG==='ja'?eq.title:eq.titleVn}
+    const active=document.querySelector('.tab.active');
+    const tab=active?active.id.replace('t-',''):'input';
+    if(tab==='input')renderInput();
+    else if(tab==='history')renderHistory();
+    else if(tab==='stats')renderStats();
+    else if(tab==='share')renderShare();
+  }
+}
+
+function updateUI(){
+  const user=sessionStorage.getItem('lu')||'admin';
+  const el=document.getElementById('app-title');if(el)el.textContent=L('app_title');
+  // app-subは非表示のため更新しない
+  ['input','history','stats','share'].forEach(k=>{
+    const el=document.getElementById('t-'+k);if(el)el.textContent=L('t_'+k);
+  });
+  // テンキーボタン
+  const nc=document.getElementById('npCancel');if(nc)nc.textContent=L('np_cancel');
+  const nk=document.getElementById('npConfirm');if(nk)nk.textContent=L('np_ok');
+  // モーダル閉じるボタン
+  const mc=document.getElementById('modCls');if(mc)mc.textContent=L('close');
+  // 週次モーダル
+  const wt=document.getElementById('wmTitle');if(wt)wt.textContent=L('w_title');
+  const wd=document.getElementById('wmDesc');if(wd)wd.textContent=L('w_desc');
+  const wi=document.getElementById('wmInput');if(wi)wi.placeholder=L('w_ph');
+  const wc=document.getElementById('wmCancel');if(wc)wc.textContent=L('w_cancel');
+  const wo=document.getElementById('wmOKBtn');if(wo)wo.textContent=L('w_ok');
+}
+
+/* =====================================================
+   点検項目定義（バイリンガル）
+   ===================================================== */
+const DEF = {
+  'OP20/30':[
+    {lb:'①',vn:'Áp kẹp (trái)',                   ja:'チャック圧（左）',              tp:'numeric',min:1.3, max:1.7, unit:'MPa',cvn:'1.3~1.7 MPa',   cja:'1.3～1.7MPa',   mvn:'Áp kế',       mja:'圧力計',    pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'②',vn:'Áp kẹp (phải)',                   ja:'チャック圧（右）',              tp:'numeric',min:1.3, max:1.7, unit:'MPa',cvn:'1.3~1.7 MPa',   cja:'1.3～1.7MPa',   mvn:'Áp kế',       mja:'圧力計',    pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'3', vn:'Lượng dầu làm mát',               ja:'クーラント量',                  tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'④',vn:'Nồng độ dầu làm mát',             ja:'クーラント濃度',                tp:'numeric',min:10,  max:15,  unit:'%', cvn:'10~15%',          cja:'10～15%',       mvn:'Nồng độ kế',  mja:'濃度計',    pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'⑤',vn:'Áp khí nguồn',                    ja:'エアー元圧',                    tp:'numeric',min:0.2, max:0.4, unit:'MPa',cvn:'0.2~0.4 MPa',   cja:'0.2～0.4MPa',   mvn:'Áp kế',       mja:'圧力計',    pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'6', vn:'Cụm dầu bôi trơn',                ja:'潤滑油ユニット',                tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'7', vn:'Lượng dầu thao tác bên trái',     ja:'油圧量（左）',                  tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'⑧',vn:'Áp dầu thao tác bên trái',        ja:'油圧ユニット（左）',            tp:'numeric',min:2.0, max:4.0, unit:'MPa',cvn:'2.0~4.0 MPa',   cja:'2.0～4.0MPa',   mvn:'Áp kế',       mja:'圧力計',    pvn:'Đầu/ca',pja:'始/直',avn:'khi máy hoạt động',aja:'機械稼働時'},
+    {lb:'9', vn:'Lượng dầu thao tác bên phải',     ja:'油圧量（右）',                  tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'⑩',vn:'Áp dầu thao tác bên phải',        ja:'油圧ユニット（右）',            tp:'numeric',min:2.0, max:4.0, unit:'MPa',cvn:'2.0~4.0 MPa',   cja:'2.0～4.0MPa',   mvn:'Áp kế',       mja:'圧力計',    pvn:'Đầu/ca',pja:'始/直',avn:'khi máy hoạt động',aja:'機械稼働時'},
+    {lb:'11',vn:'Lọc nước làm mát (2 vị trí)',     ja:'クーラントフィルター（2箇所）', tp:'action',                   unit:'',  cvn:'Vệ sinh bộ lọc', cja:'フィルター清掃', mvn:'Vệ sinh sạch',mja:'エアブロー',pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'12',vn:'Vệ sinh lưới lọc',                ja:'メッシュ清掃',                  tp:'action',                   unit:'',  cvn:'Không tắc mắt lọc',cja:'目詰まり無き事',mvn:'Xịt khí',   mja:'エアブロー',pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'⑬',vn:'Áp nước làm mát',                 ja:'クーラント圧',                  tp:'numeric',min:1.0, max:99,  unit:'MPa',cvn:'1.0 MPa tro len',cja:'1.0Mpa以上',   mvn:'Áp kế',       mja:'圧力計',    pvn:'Đầu/ca',pja:'始/直',avn:'khi máy hoạt động',aja:'機械稼働時'},
+    {lb:'⑭',vn:'Áp cyclone separator',             ja:'サイクロン圧',                  tp:'numeric',min:0.08,max:0.2, unit:'MPa',cvn:'0.08~0.2 MPa',  cja:'0.1～0.2MPa',  mvn:'Áp kế',       mja:'圧力計',    pvn:'Đầu/ca',pja:'始/直',avn:'khi máy hoạt động',aja:'機械稼働時',dec:2},
+    {lb:'15',vn:'Lượng nước làm mát (Tank cao áp)',ja:'クーラント量（高圧タンク）',    tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'Nhìn bằng mắt',mja:'レベルゲージ',pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'⑯',vn:'Nhiệt độ làm mát dầu',            ja:'クーラント温度',                tp:'numeric',min:20,  max:35,  unit:'°C',cvn:'20~35°C',        cja:'20℃～35℃',     mvn:'Đồng hồ',     mja:'温度計',    pvn:'Đầu/ca',pja:'始/直'},
+  ],
+  'OP40':[
+    {lb:'1', vn:'Vệ sinh phoi trong đồ gá',ja:'ジグ内切粉清掃',   tp:'action',unit:'',cvn:'Không có phoi',     cja:'切粉なき事',  mvn:'Súng khí', mja:'エアブロー',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'②',vn:'Áp khí nguồn',            ja:'エアー元圧',        tp:'numeric',min:0.1,max:0.3,unit:'MPa',cvn:'0.1~0.3 MPa', cja:'0.1～0.3MPa',mvn:'Áp kế',    mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'3', vn:'Đồ gá',                   ja:'治具',              tp:'action',unit:'',cvn:'Không bị lỏng',    cja:'緩み無き事',  mvn:'Mắt thường',mja:'目視',    pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'4', vn:'Sản phẩm sau khi sấy',    ja:'脱水済ワーク',      tp:'action',unit:'',cvn:'Không trầy,móp,còn nước',cja:'傷・打痕・水残り無き事',mvn:'Mắt thường',mja:'目視',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'5', vn:'Kiểm tra lò xo',          ja:'スプリング確認',    tp:'action',unit:'',cvn:'Không bị gãy',     cja:'折れ無き事',  mvn:'Mắt thường',mja:'目視',    pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'6', vn:'Vệ sinh đồ gá',           ja:'治具清掃',          tp:'action',unit:'',cvn:'Không có phoi',    cja:'切粉なし',    mvn:'Mắt thường',mja:'目視',    pvn:'Đầu/ca',pja:'始/直'},
+  ],
+  'OP50':[
+    {lb:'①',vn:'Áp khí nguồn',            ja:'エアー元圧',        tp:'numeric',min:0.45,max:0.55,unit:'MPa',cvn:'0.45~0.55 MPa',cja:'0.45～0.55MPa',mvn:'Áp kế',mja:'圧力計',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'2', vn:'Đồ gá',                   ja:'治具',              tp:'action',unit:'',cvn:'Không bị lỏng',    cja:'緩み無き事',   mvn:'Mắt thường',mja:'目視',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'3', vn:'Máy khắc laser',          ja:'レーザーマーカー',  tp:'action',unit:'',cvn:'Màn hình không lỗi',cja:'画面に異常表示無き事',mvn:'Mắt thường',mja:'目視',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'4', vn:'Vệ sinh kính laser',      ja:'レーザーレンズ清掃',tp:'action',unit:'',cvn:'Kính không bị mờ', cja:'レンズ汚れ無き事',mvn:'Vải khô+cồn',mja:'エアブロー',pvn:'1 lần/Tuần',pja:'1/週'},
+  ],
+  'OP70-1':[
+    {lb:'①',vn:'Áp kẹp phụ',              ja:'サブクランプ圧',     tp:'numeric',min:1.5, max:2.0, unit:'MPa',cvn:'1.5~2.0 MPa',   cja:'1.5～2.0MPa',  mvn:'Áp kế',   mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'②',vn:'Áp kẹp',                  ja:'クランプ圧',          tp:'numeric',min:0.95,max:1.05,unit:'MPa',cvn:'0.95~1.05 MPa', cja:'0.95～1.05MPa',mvn:'Áp kế',   mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'③',vn:'Áp kẹp trục B',           ja:'B軸クランプ圧',       tp:'numeric',min:3.1, max:3.7, unit:'MPa',cvn:'3.1~3.7 MPa',   cja:'3.1～3.7MPa',  mvn:'Áp kế',   mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'④',vn:'Áp kẹp trục C',           ja:'C軸クランプ圧',       tp:'numeric',min:3.1, max:3.7, unit:'MPa',cvn:'3.1~3.7 MPa',   cja:'3.1～3.7MPa',  mvn:'Áp kế',   mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'5', vn:'Lưu lượng dầu làm mát',  ja:'クーラントの掛り具合',tp:'action',                   unit:'',  cvn:'Đủ đến mũi dao', cja:'刃先に十分掛る事',mvn:'Mắt thường',mja:'目視', pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'6', vn:'Lượng dầu làm mát',      ja:'クーラント量',         tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'7', vn:'Áp khí nguồn',           ja:'エアー元圧',           tp:'numeric',min:0.4, max:0.6, unit:'MPa',cvn:'0.4~0.6 MPa',   cja:'0.4～0.6MPa',  mvn:'Áp kế',   mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'8', vn:'Lượng dầu bôi trơn',     ja:'潤滑油ユニット',       tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'9', vn:'Lượng dầu thủy lực',     ja:'油圧ユニット（量）',   tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'⑩',vn:'Áp dầu thủy lực',        ja:'油圧ユニット（圧）',   tp:'numeric',min:3.0, max:5.0, unit:'MPa',cvn:'3.0~5.0 MPa',   cja:'3.0～5.0MPa',  mvn:'Áp kế',   mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'⑪',vn:'Dầu làm mát cao áp',     ja:'高圧クーラントユニット',tp:'numeric',min:3.0,max:5.0, unit:'MPa',cvn:'3.0~5.0 MPa',   cja:'3.0～5.0MPa',  mvn:'Áp kế',   mja:'圧力計',   pvn:'1 lần/Tuần',pja:'1/週',avn:'khi máy hoạt động',aja:'機械稼働時'},
+    {lb:'12',vn:'Dầu bôi trơn ATC',       ja:'ATC潤滑ユニット',      tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'13',vn:'Mỡ',                      ja:'グリス',               tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'⑭',vn:'Filter chip conveyor',    ja:'チップコンのフィルター',tp:'numeric',min:0.03,max:0.10,unit:'MPa',cvn:'0.03~0.10 MPa',cja:'0.03～0.10MPa',mvn:'Áp kế',   mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直',dec:2},
+    {lb:'⑮',vn:'Nhiệt độ dầu làm mát',   ja:'クーラント温度',       tp:'numeric',min:25,  max:45,  unit:'°C',cvn:'25~45°C',        cja:'25℃～45℃',    mvn:'Đồng hồ', mja:'温度計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'⑯',vn:'Áp filter dầu',          ja:'フィルター圧（タンク）',tp:'numeric',min:0.05,max:0.16,unit:'MPa',cvn:'0.05~0.16 MPa',cja:'0.05～0.16MPa',mvn:'Đồng hồ', mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直',dec:2,avn:'khi bơm hoạt động',aja:'ポンプ稼働時'},
+  ],
+  'OP80':[
+    {lb:'1', vn:'Lượng dung dịch rửa',    ja:'洗浄液量',        tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'②',vn:'Nhiệt độ dung dịch rửa', ja:'洗浄液温度',      tp:'numeric',min:40,  max:50,  unit:'°C',cvn:'40~50°C',       cja:'40～50℃',     mvn:'Nhiệt kế', mja:'温度計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'③',vn:'Áp bơm',                 ja:'ポンプ圧',         tp:'numeric',min:0.7, max:0.9, unit:'MPa',cvn:'0.7~0.9 MPa',  cja:'0.7～0.9MPa', mvn:'Áp kế',    mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'④',vn:'Áp khí nguồn',           ja:'エアー元圧',       tp:'numeric',min:0.35,max:0.45,unit:'MPa',cvn:'0.35~0.45 MPa',cja:'0.35～0.45MPa',mvn:'Áp kế',   mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'5', vn:'Thời gian rửa',         ja:'洗浄時間',         tp:'action',                   unit:'',  cvn:'20 giây',       cja:'20sec',        mvn:'Đồng hồ',  mja:'タイマー', pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'6', vn:'Thời gian thổi khí',    ja:'エアブロー時間',   tp:'action',                   unit:'',  cvn:'25 giây',       cja:'25sec',        mvn:'Đồng hồ',  mja:'タイマー', pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'7', vn:'Thiết bị tách dầu',     ja:'油分分離装置',     tp:'action',                   unit:'',  cvn:'Đổ bỏ dầu tích tụ',cja:'溜まった油分を廃却',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'8', vn:'Thay dung dịch rửa',    ja:'洗浄液交換',       tp:'action',                   unit:'',  cvn:'Thực hiện thay thế',cja:'交換する事', mvn:'Thực hiện',mja:'実施',   pvn:'1 lần/Tháng',pja:'1/月'},
+  ],
+  'OP100':[
+    {lb:'①',vn:'Áp kẹp',                  ja:'チャック圧',           tp:'numeric',min:0.8, max:1.2, unit:'MPa',cvn:'0.8~1.2 MPa',  cja:'0.8～1.2MPa',  mvn:'Áp kế',       mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'2', vn:'Lượng dầu làm mát',       ja:'クーラント量',          tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'③',vn:'Nồng độ dầu làm mát',     ja:'クーラント濃度',        tp:'numeric',min:10,  max:15,  unit:'%', cvn:'10~15%',        cja:'10～15%',       mvn:'Nồng độ kế',  mja:'濃度計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'④',vn:'Áp khí nguồn',            ja:'エアー元圧',             tp:'numeric',min:0.3, max:0.6, unit:'MPa',cvn:'0.3~0.6 MPa',  cja:'0.3～0.6MPa',  mvn:'Áp kế',       mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'5', vn:'Cụm dầu bôi trơn',        ja:'潤滑油ユニット',         tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'⑥',vn:'Áp dầu làm mát',          ja:'クーラント圧',           tp:'numeric',min:1.0, max:99,  unit:'MPa',cvn:'1.0 MPa tro len',cja:'1.0Mpa以上',  mvn:'Áp kế',       mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'⑦',vn:'Áp cyclone',              ja:'サイクロン圧',           tp:'numeric',min:0.1, max:0.2, unit:'MPa',cvn:'0.1~0.2 MPa',  cja:'0.1～0.2MPa',  mvn:'Áp kế',       mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'⑧',vn:'Áp air zero',             ja:'エアゼロ圧',             tp:'numeric',min:0.08,max:0.12,unit:'MPa',cvn:'0.08~0.12 MPa',cja:'0.08～0.12MPa',mvn:'Áp kế',       mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直',dec:2},
+    {lb:'9', vn:'Lượng dầu thủy lực',      ja:'油圧ユニット（量）',     tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'10',vn:'Bộ tách dầu',             ja:'オイルセパレーター',     tp:'action',                   unit:'',  cvn:'Loại bỏ dầu bẩn', cja:'汚れた油を除去する事',mvn:'Mắt thường',mja:'目視', pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'11',vn:'Lượng dầu làm mát cao áp',ja:'クーラント量（高圧）',   tp:'level',                    unit:'',  cvn:'Trong vạch level gauge',cja:'レベルゲージ線内',mvn:'level gauge',mja:'レベルゲージ',pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'12',vn:'Vệ sinh lưới lọc',        ja:'メッシュ清掃',           tp:'action',                   unit:'',  cvn:'Không tắc mắt lọc',cja:'目詰まり無き事',mvn:'Xịt khí',  mja:'エアブロー',pvn:'1 lần/Tuần',pja:'1/週'},
+    {lb:'⑬',vn:'Áp dầu thủy lực',         ja:'油圧ユニット（圧）',     tp:'numeric',min:2.0, max:4.0, unit:'MPa',cvn:'2.0~4.0 MPa',  cja:'2.0～4.0MPa',  mvn:'Áp kế',       mja:'圧力計',   pvn:'Đầu/ca',pja:'始/直',avn:'khi máy hoạt động',aja:'機械稼働時'},
+    {lb:'⑭',vn:'Nhiệt độ dầu làm mát',    ja:'クーラント温度',         tp:'numeric',min:25,  max:45,  unit:'°C',cvn:'25~45°C',       cja:'25℃～45℃',    mvn:'Đồng hồ',     mja:'温度計',   pvn:'Đầu/ca',pja:'始/直'},
+  ],
+  'OP110':[
+    {lb:'1', vn:'Thay nước',               ja:'水の交換',         tp:'action',unit:'',cvn:'Thực hiện thay nước',cja:'交換の実施', mvn:'Thực hiện',mja:'実施',  pvn:'2 lần/ca',pja:'2/直'},
+    {lb:'②',vn:'Áp khí nguồn',            ja:'エアー元圧',        tp:'numeric',min:0.1,max:0.3,unit:'MPa',cvn:'0.1~0.3 MPa',cja:'0.1～0.3MPa',mvn:'Áp kế',mja:'圧力計',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'3', vn:'Đồ gá',                   ja:'治具',              tp:'action',unit:'',cvn:'Không bị lỏng',   cja:'緩み無き事',mvn:'Mắt thường',mja:'目視',  pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'4', vn:'Sản phẩm sau khi sấy',    ja:'脱水済ワーク',      tp:'action',unit:'',cvn:'Không trầy,móp,còn nước',cja:'傷・打痕・水残り無き事',mvn:'Mắt thường',mja:'目視',pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'5', vn:'Kiểm tra lò xo',          ja:'スプリング確認',    tp:'action',unit:'',cvn:'Không bị gãy',    cja:'折れ無き事', mvn:'Mắt thường',mja:'目視',  pvn:'Đầu/ca',pja:'始/直'},
+    {lb:'6', vn:'Vệ sinh đồ gá',           ja:'治具清掃',          tp:'action',unit:'',cvn:'Không có phoi',   cja:'切粉なし',   mvn:'Mắt thường',mja:'目視',  pvn:'Đầu/ca',pja:'始/直'},
+  ],
+};
+DEF['OP70-2'] = DEF['OP70-1'];
+DEF['OP70-3'] = DEF['OP70-1'];
+DEF['OP70-4'] = JSON.parse(JSON.stringify(DEF['OP70-1']));
+DEF['OP70-4'][14].min=20; DEF['OP70-4'][14].max=35; DEF['OP70-4'][14].cvn='20~35°C'; DEF['OP70-4'][14].cja='20℃～35℃';
+
+let ITEMS = DEF['OP20/30'];
+
+function getOPKey(eqKey){
+  if(!eqKey) return 'OP20/30';
+  const parts = eqKey.split('_');
+  parts.shift(); // remove line prefix (e.g. "11Line")
+  return parts.join('_');
+}
+function loadEquipmentItems(eqKey){
+  if(currentMode==='jig'){
+    const jigEq = JIG_ACTIVE_EQUIPMENT[eqKey];
+    ITEMS = (jigEq && JIG_DEF[jigEq.op]) ? JIG_DEF[jigEq.op] : (_JIG_OP20_STD);
+  } else {
+    const opKey = getOPKey(eqKey);
+    ITEMS = DEF[opKey] || DEF['OP20/30'];
+  }
+}
+
+function iN(i){return LANG==='ja'?i.ja:i.vn}
+function iC(i){return LANG==='ja'?i.cja:i.cvn}
+function iM(i){return LANG==='ja'?i.mja:i.mvn}
+function iP(i){return LANG==='ja'?i.pja:i.pvn}
+function iA(i){return LANG==='ja'?(i.aja||''):(i.avn||'')}
+
+/* =====================================================
+   データストレージ（設備別）
+   ===================================================== */
+function eqStorageKey(eqKey){ return 'tenken_'+eqKey.replace(/[/ ]/g,'_')+'_v1' }
+function eqWeeklyKey(eqKey){  return 'tenken_wk_'+eqKey.replace(/[/ ]/g,'_')+'_v1' }
+
+const SK='tenken_vn_v1', WK='tenken_weekly_v1';
+let CV={}, CM={date:td(),shift:'D',op:''};
+let records=[], weekly=[];
+
+function td(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function ldr(eqKey){try{const k=eqKey?eqStorageKey(eqKey):SK;return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}}
+function sdr(){
+  const k=currentEquipment?eqStKey(currentEquipment):SK;
+  localStorage.setItem(k,JSON.stringify(records));
+  fbWrite(k,records); // ← đồng bộ lên Firebase
+}
+function ldw(eqKey){try{const k=eqKey?eqWeeklyKey(eqKey):WK;return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}}
+function sdw(){
+  const k=currentEquipment?eqWkKey(currentEquipment):WK;
+  localStorage.setItem(k,JSON.stringify(weekly));
+  fbWrite(k,weekly); // ← đồng bộ lên Firebase
+}
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+
+/* =====================================================
+   QRコード対応 - URLパラメーターで設備を自動選択
+   例: checksheet.html?eq=11Line_OP20%2F30
+   ===================================================== */
+function getURLParam(key){
+  return new URLSearchParams(location.search).get(key);
+}
+const QR_EQ_KEY = getURLParam('eq'); // QRコードから設備IDを取得
+
+function autoOpenFromQR(){
+  if(!QR_EQ_KEY) return false;
+  const eq = ACTIVE_EQUIPMENT[QR_EQ_KEY];
+  if(!eq){ showToast('設備が見つかりません: '+QR_EQ_KEY); return false; }
+  showChecksheet(QR_EQ_KEY);
+  return true;
+}
+
+/* =====================================================
+   QRコード一覧印刷ページを生成
+   ===================================================== */
+function openQRPage(){
+  const baseURL = location.href.split('?')[0];
+  const eqList  = Object.entries(ACTIVE_EQUIPMENT).map(([k,v])=>({
+    key:k, title:v.title, titleVn:v.titleVn,
+    procJa:v.procJa||'', procVn:v.procVn||''
+  }));
+
+  const lines = [];
+  lines.push('<!DOCTYPE html><html lang="ja"><head>');
+  lines.push('<meta charset="UTF-8">');
+  lines.push('<meta name="viewport" content="width=device-width,initial-scale=1">');
+  lines.push('<title>QRコード一覧 - OGINO VIETNAM TU SON</title>');
+  lines.push('<style>');
+  lines.push('*{box-sizing:border-box;margin:0;padding:0}');
+  lines.push('body{font-family:Arial,sans-serif;background:#f5f5f5;padding:16px}');
+  lines.push('h1{font-size:18px;font-weight:700;text-align:center;margin-bottom:4px;color:#1a2027}');
+  lines.push('.sub{text-align:center;font-size:12px;color:#666;margin-bottom:12px}');
+  lines.push('.prbtn{background:#1a5fa8;color:white;border:none;padding:8px 24px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}');
+  lines.push('.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:16px}');
+  lines.push('.card{background:white;border-radius:10px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.1);page-break-inside:avoid}');
+  lines.push('.ct{font-size:14px;font-weight:700;color:#1a2027;margin-bottom:3px}');
+  lines.push('.cp{font-size:10px;color:#666;margin-bottom:10px;line-height:1.5}');
+  lines.push('.qbox{display:inline-block;padding:8px;border:2px solid #1a5fa8;border-radius:8px;margin-bottom:8px}');
+  lines.push('.url{font-size:8px;color:#aaa;word-break:break-all;margin-top:4px}');
+  lines.push('@media print{.no-print{display:none!important} body{background:white;padding:8px} .card{box-shadow:none;border:1px solid #ccc}}');
+  lines.push('</style>');
+  lines.push('<scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/scr'+'ipt>');
+  lines.push('</head><body>');
+  lines.push('<h1>設備点検チェックシート QRコード一覧</h1>');
+  lines.push('<p class="sub">OGINO VIETNAM TU SON &nbsp;|&nbsp; Danh sách QR code kiểm tra thiết bị</p>');
+  lines.push('<p class="sub no-print"><button class="prbtn" onclick="window.print()">🖨 印刷する / In QR code</button></p>');
+  lines.push('<p class="sub" style="color:#e65100;font-size:11px">※ 各設備の機械に貼付してください / Dán QR code lên từng máy</p>');
+  lines.push('<div class="grid">');
+
+  eqList.forEach(eq=>{
+    const url = baseURL + '?eq=' + encodeURIComponent(eq.key);
+    const qid = 'q' + eq.key.replace(/[^a-zA-Z0-9]/g,'_');
+    lines.push('<div class="card">');
+    lines.push('<div class="ct">' + eq.title + '</div>');
+    lines.push('<div class="cp">' + (eq.procJa||'') + '<br>' + (eq.procVn||'') + '</div>');
+    lines.push('<div class="qbox" id="' + qid + '"></div>');
+    lines.push('<div class="url">' + url + '</div>');
+    lines.push('</div>');
+    const safeUrl = url.replace(/"/g,'&quot;');
+    lines.push('<scr'+'ipt>setTimeout(function(){');
+    lines.push('  var el=document.getElementById("' + qid + '");');
+    lines.push('  if(!el)return;');
+    lines.push('  try{new QRCode(el,{text:"' + safeUrl + '",width:160,height:160,');
+    lines.push('    colorDark:"#1a5fa8",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});}');
+    lines.push('  catch(e){el.style.fontSize="8px";el.textContent="' + safeUrl + '";}');
+    lines.push('},300);<\/script>');
+  });
+
+  lines.push('</div></body></html>');
+  const blob = new Blob([lines.join('\n')],{type:'text/html;charset=utf-8'});
+  window.open(URL.createObjectURL(blob),'_blank');
+}
+
+
+/* =====================================================
+   今日の点検状況を設備ごとに取得
+   戻り値: 'none' | 'ok' | 'ng' | 'partial'
+   ===================================================== */
+function getTodayStatus(eqKey){
+  const today = td(); // 今日の日付 YYYY-MM-DD
+  try{
+    const recs = JSON.parse(localStorage.getItem(eqStKey(eqKey))||'[]');
+    const todayRecs = recs.filter(r=>r.date===today);
+    if(!todayRecs.length) return 'none'; // 未点検
+
+    const aeq = getActiveEquipment();
+    const eq = aeq[eqKey];
+    if(!eq) return 'none';
+    const items = currentMode==='jig'?((JIG_DEF[eq.op])||[]):(DEF[eq.op]||DEF['OP20/30']);
+
+    let hasD=false, hasN=false, hasNG=false;
+    todayRecs.forEach(r=>{
+      if(r.shift==='D') hasD=true;
+      else hasN=true;
+      // NG項目チェック
+      Object.values(r.vals||{}).forEach(v=>{
+        if(v.D==='NG'||v.N==='NG') hasNG=true;
+        // 数値型のNG判定
+        items.forEach((item,idx)=>{
+          if(item.tp==='numeric'){
+            const dv=(r.vals[idx]||{}).Dv;
+            const nv=(r.vals[idx]||{}).Nv;
+            if(dv!==undefined&&dv!==''&&(parseFloat(dv)<item.min||parseFloat(dv)>item.max)) hasNG=true;
+            if(nv!==undefined&&nv!==''&&(parseFloat(nv)<item.min||parseFloat(nv)>item.max)) hasNG=true;
+          }
+        });
+      });
+    });
+
+    if(hasNG) return 'ng';
+    if(hasD&&hasN) return 'ok';   // 昼・夜両方完了でNG無し
+    return 'partial';              // 片方のみ完了
+  }catch(e){ return 'none'; }
+}
+
+/* 設備ステータスのラベルテキスト */
+function getStatusLabel(status, isJA, op){
+  if(status==='none')    return op+'<br><span style="font-size:9px;opacity:.9">▶ '+(isJA?'未点検':'Chưa KT')+'</span>';
+  if(status==='ok')      return op+'<br><span style="font-size:9px">✓ '+(isJA?'完了 OK':'Hoàn tất OK')+'</span>';
+  if(status==='ng')      return op+'<br><span style="font-size:9px">✗ '+(isJA?'NG あり':'Có NG')+'</span>';
+  if(status==='partial') return op+'<br><span style="font-size:9px">◑ '+(isJA?'一部完了':'Một phần')+'</span>';
+  return op;
+}
+
+
+/* =====================================================
+   治具点検チェックシート 定義
+   ===================================================== */
+
+/* =====================================================
+   共通 治具点検項目テンプレート
+   ===================================================== */
+// OP20/30/100 標準 (Lines 1-10, 15-18用) 11項目
+const _JIG_OP20_STD = [
+  {lb:'1', vn:'Độ lỏng bu lông cố định kẹp',        ja:'クランパー固定ネジ緩み',      tp:'action',cvn:'Bu lông không bị lỏng',      cja:'緩み無き事',       mvn:'Lục lăng',      mja:'六角レンチ',  pvn:'1 lần/Tháng', pja:'1/月'},
+  {lb:'2', vn:'Dầu rỉ từ xi lanh (cử động kẹp)',     ja:'シリンダー油漏れ',            tp:'action',cvn:'Không bị rỉ dầu',            cja:'油漏れ無き事',     mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'3', vn:'Nứt kẹp (Clamp crack)',                ja:'クランパークラック',           tp:'action',cvn:'Không có vết nứt',            cja:'クラック無き事',   mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'4', vn:'Nứt bu lông (Locator crack)',           ja:'ロケータークラック',           tp:'action',cvn:'Bu lông giữ kẹp không nứt',   cja:'クラック無き事',   mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'5', vn:'Mặt chuẩn Airzero (Locator)',          ja:'エアーゼロ準面',              tp:'action',cvn:'Không bị va đập, sứt mẻ',     cja:'打痕・欠け無き事', mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'6', vn:'Kẹp (Chuck)',                           ja:'チャック動作',                tp:'action',cvn:'Hoạt động bình thường',       cja:'正常動作する事',   mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'7', vn:'Nước phun đầu dao',                    ja:'刃先クーラント',              tp:'action',cvn:'Không tắc, phun đúng vị trí', cja:'詰まりなく刃先に掛る事',mvn:'Mắt thường',mja:'目視',         pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'8', vn:'Nước phun vào Phôi khi gia công',      ja:'ワーク加工時クーラント',      tp:'action',cvn:'Phun đúng vào vị trí gia công',cja:'加工位置に掛る事',mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'9', vn:'Khí vệ sinh sản phẩm sau gia công',    ja:'エアー清掃',                  tp:'action',cvn:'Vòi khí thổi đúng vị trí',   cja:'正しい位置に噴射', mvn:'Mắt+Tai',       mja:'目視・耳視',   pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'10',vn:'Độ Nhậy Gá Lắp (Airzero)',             ja:'エアーゼロ着座感度',          tp:'action',cvn:'Rãnh NG: OFF / Rãnh OK: ON', cja:'NGゾーン:OFF/OKゾーン:ON',mvn:'Master đo',mja:'専用マスター',pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'11',vn:'Độ lỏng bulong cố định Holder',        ja:'ホルダー固定ボルト緩み',      tp:'action',cvn:'Bu lông không bị lỏng',      cja:'緩み無き事',       mvn:'Cờ lê, lục giác',mja:'スパナ・六角',pvn:'1 lần/Tháng', pja:'1/月'},
+];
+// OP70 標準 (Lines 1-10, 15-18用) 11項目
+const _JIG_OP70_STD = [
+  {lb:'1', vn:'Độ lỏng bu lông cố định kẹp',          ja:'クランパー固定ネジ緩み',      tp:'action',cvn:'Bu lông không bị lỏng',      cja:'緩み無き事',       mvn:'Lục lăng,bằng tay',mja:'六角レンチ',   pvn:'1 lần/Tháng', pja:'1/月'},
+  {lb:'2', vn:'Dầu rỉ từ xi lanh (cử động kẹp)',     ja:'シリンダー油漏れ',            tp:'action',cvn:'Không bị rỉ dầu',            cja:'油漏れ無き事',     mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'3', vn:'Nứt kẹp (Clamp crack)',                ja:'クランパークラック',           tp:'action',cvn:'Không có vết nứt',            cja:'クラック無き事',   mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'4', vn:'Nứt bu lông (Locator crack)',           ja:'ロケータークラック',           tp:'action',cvn:'Bu lông giữ kẹp không nứt',   cja:'クラック無き事',   mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'5', vn:'Mặt chuẩn Airzero (Locator)',          ja:'エアーゼロ準面',              tp:'action',cvn:'Không bị va đập, sứt mẻ',     cja:'打痕・欠け無き事', mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'6', vn:'Kẹp (Chuck)',                           ja:'チャック動作',                tp:'action',cvn:'Hoạt động bình thường',       cja:'正常動作する事',   mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'7', vn:'Nước phun đầu dao',                    ja:'刃先クーラント',              tp:'action',cvn:'Phun đúng vào đầu dao',       cja:'刃先に十分掛る事', mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'8', vn:'Nước phun Tâm dao',                    ja:'刃芯クーラント',              tp:'action',cvn:'Có nước phun qua tâm dao',     cja:'刃芯に掛る事',     mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'9', vn:'Nước phun cao áp làm sạch phoi',       ja:'高圧クーラント（切粉除去）',  tp:'action',cvn:'Vòi phun đúng vào lưỡi dao',  cja:'刃先に正しく噴射', mvn:'Mắt thường',    mja:'目視',         pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'10',vn:'Độ Nhậy Gá Lắp (Airzero)',             ja:'エアーゼロ着座感度',          tp:'action',cvn:'Rãnh NG: đèn OFF / OK: ON',   cja:'NGゾーン:消灯/OKゾーン:点灯',mvn:'Master OP70',mja:'OP70専用マスター',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'11',vn:'Vệ Sinh + kiểm tra dao',               ja:'刃物清掃・点検',              tp:'action',cvn:'Không có phoi bám',           cja:'切粉付着無き事',   mvn:'Súng khí+mắt',  mja:'エアガン・目視',pvn:'1 lần/Ca',    pja:'1/直'},
+];
+// OP80 標準 (全LINE共通) 2項目
+const _JIG_OP80_STD = [
+  {lb:'1', vn:'Phần gá đặt chi tiết (nhựa giữ chi tiết)',ja:'治具ユニット（プラスチック部）',tp:'action',cvn:'Không vỡ, không mòn, không lỏng',cja:'クラック・摩耗・緩み無き事',mvn:'Tay+mắt',mja:'手感・目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'2', vn:'Vòi Khí, Vòi nước xung quanh đồ gá',    ja:'エアー・水ノズル',           tp:'action',cvn:'Không lệch vị trí, không lỏng',cja:'位置ずれ・緩み無き事',mvn:'Tay+mắt',mja:'手感・目視',pvn:'1 lần/Tuần',pja:'1/週'},
+];
+// OP20 Lines 11-14 (11項目)
+const _JIG_OP20_L11 = [
+  {lb:'1', vn:'Độ lỏng bu lông cố định kẹp',            ja:'クランパー固定ネジ緩み',    tp:'action',cvn:'Bu lông không bị lỏng',      cja:'緩み無き事',       mvn:'Lục lăng',  mja:'六角レンチ',pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'2', vn:'Dầu rỉ từ xi lanh (cử động kẹp)',       ja:'シリンダー油漏れ',          tp:'action',cvn:'Không bị rỉ dầu',            cja:'油漏れ無き事',     mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'3', vn:'Nứt kẹp',                                ja:'クランパークラック',         tp:'action',cvn:'Không có vết nứt',            cja:'クラック無き事',   mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tháng', pja:'1/月'},
+  {lb:'4', vn:'Kẹp (Chuck)',                             ja:'チャック動作',              tp:'action',cvn:'Hoạt động bình thường',       cja:'正常動作する事',   mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'5', vn:'Mặt chuẩn Airzero + Nứt Locator',        ja:'エアーゼロ準面・ロケーター', tp:'action',cvn:'Không bị va đập, sứt mẻ',    cja:'打痕・欠け無き事', mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'6', vn:'Nước phun đầu dao',                      ja:'刃先クーラント',            tp:'action',cvn:'Không tắc, phun đúng vị trí', cja:'詰まりなく掛る事', mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'7', vn:'Nước Phun Rửa Phoi',                     ja:'切粉洗浄水',                tp:'action',cvn:'Vòi nước hoạt động bình thường',cja:'正常動作する事', mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'8', vn:'Khí vệ sinh sản phẩm và đồ gá',          ja:'エアー清掃',                tp:'action',cvn:'Vòi khí thổi đúng vị trí kẹp',cja:'正しい位置に噴射',mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'9', vn:'Độ Nhậy Gá Lắp (Airzero)',               ja:'エアーゼロ着座感度',        tp:'action',cvn:'Rãnh NG: OFF / Rãnh OK: ON', cja:'NGゾーン:OFF/OKゾーン:ON',mvn:'Master OP20',mja:'OP20専用マスター',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'10',vn:'Độ lỏng Holder trên magazin',            ja:'マガジンホルダー固定',       tp:'action',cvn:'Vít giữ holder không bị lỏng',cja:'固定ビス緩み無き事',mvn:'Tay,lục giác 8',mja:'手感・六角8mm',pvn:'1 lần/Tháng',pja:'1/月'},
+  {lb:'11',vn:'Đồ gá khu vực cấp phôi',                 ja:'ワーク供給部治具',           tp:'action',cvn:'Hoạt động bình thường, không rơ',cja:'正常動作・がたつき無き事',mvn:'Mắt+tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'},
+];
+// OP70 Lines 11-14 (10項目)
+const _JIG_OP70_L11 = [
+  {lb:'1', vn:'Độ lỏng bu lông cố định kẹp',            ja:'クランパー固定ネジ緩み',    tp:'action',cvn:'Bu lông không bị lỏng',      cja:'緩み無き事',       mvn:'Lục lăng,tay',mja:'六角レンチ', pvn:'1 lần/Tháng', pja:'1/月'},
+  {lb:'2', vn:'Dầu rỉ từ xi lanh (cử động kẹp)',       ja:'シリンダー油漏れ',          tp:'action',cvn:'Không bị rỉ dầu',            cja:'油漏れ無き事',     mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'3', vn:'Nứt kẹp',                                ja:'クランパークラック',         tp:'action',cvn:'Không có vết nứt',            cja:'クラック無き事',   mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'4', vn:'Kẹp (Chuck)',                             ja:'チャック動作',              tp:'action',cvn:'Hoạt động bình thường',       cja:'正常動作する事',   mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'5', vn:'Mặt chuẩn Airzero + Nứt Locator',        ja:'エアーゼロ準面・ロケーター', tp:'action',cvn:'Không bị va đập, sứt mẻ',    cja:'打痕・欠け無き事', mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'6', vn:'Nước phun đầu dao',                      ja:'刃先クーラント',            tp:'action',cvn:'Phun đúng vào đầu dao khi GC', cja:'加工中刃先に掛る事',mvn:'Mắt thường',mja:'目視',      pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'7', vn:'Nước phun Tâm dao',                      ja:'刃芯クーラント',            tp:'action',cvn:'Có nước phun qua tâm dao',     cja:'刃芯に掛る事',     mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'8', vn:'Nước phun cao áp làm sạch phoi',         ja:'高圧クーラント（切粉除去）', tp:'action',cvn:'Vòi phun đúng vào lưỡi dao',  cja:'刃先に正しく噴射', mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'9', vn:'Độ Nhậy Gá Lắp (Airzero)',               ja:'エアーゼロ着座感度',        tp:'action',cvn:'Rãnh NG: OFF / Rãnh OK: ON', cja:'NGゾーン:消灯/OKゾーン:点灯',mvn:'Master OP70',mja:'OP70専用マスター',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'10',vn:'Vệ Sinh + kiểm tra dao',                 ja:'刃物清掃・点検',            tp:'action',cvn:'Không có phoi bám',           cja:'切粉付着無き事',   mvn:'Súng khí+mắt',mja:'エアガン・目視',pvn:'1 lần/Ca',  pja:'1/直'},
+];
+// OP100 Lines 11-14 (9項目)
+const _JIG_OP100_L11 = [
+  {lb:'1', vn:'Độ lỏng bu lông cố định kẹp',            ja:'クランパー固定ネジ緩み',    tp:'action',cvn:'Bu lông không bị lỏng',      cja:'緩み無き事',       mvn:'Lục lăng',  mja:'六角レンチ',pvn:'1 lần/Tháng', pja:'1/月'},
+  {lb:'2', vn:'Dầu rỉ từ xi lanh (cử động kẹp)',       ja:'シリンダー油漏れ',          tp:'action',cvn:'Không bị rỉ dầu',            cja:'油漏れ無き事',     mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'3', vn:'Nứt kẹp',                                ja:'クランパークラック',         tp:'action',cvn:'Không có vết nứt',            cja:'クラック無き事',   mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'4', vn:'Kẹp (Chuck)',                             ja:'チャック動作',              tp:'action',cvn:'Hoạt động bình thường',       cja:'正常動作する事',   mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'5', vn:'Mặt chuẩn Airzero + Nứt Locator',        ja:'エアーゼロ準面・ロケーター', tp:'action',cvn:'Không bị va đập, sứt mẻ',    cja:'打痕・欠け無き事', mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Tuần',  pja:'1/週'},
+  {lb:'6', vn:'Nước phun đầu dao',                      ja:'刃先クーラント',            tp:'action',cvn:'Không tắc, phun đúng vị trí', cja:'詰まりなく掛る事', mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'7', vn:'Nước Phun vào Phôi khi gia công',        ja:'ワーク加工時クーラント',    tp:'action',cvn:'Phun đúng vào vị trí gia công',cja:'加工位置に掛る事', mvn:'Mắt thường',mja:'目視',       pvn:'1 lần/Ca',    pja:'1/直'},
+  {lb:'8', vn:'Độ Nhậy Gá Lắp (Airzero)',               ja:'エアーゼロ着座感度',        tp:'action',cvn:'Rãnh NG: OFF / Rãnh OK: ON', cja:'NGゾーン:OFF/OKゾーン:ON',mvn:'Master OP100',mja:'OP100専用マスター',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'9', vn:'Độ lỏng bulong, vít cố định Holder',     ja:'ホルダー固定ボルト・ビス',   tp:'action',cvn:'Bu lông không bị lỏng',      cja:'緩み無き事',       mvn:'Cờ lê 17,lục giác 5,6',mja:'スパナ17・六角5,6mm',pvn:'1 lần/Tháng',pja:'1/月'},
+];
+// OP30 Lines 15-18 (15項目 = 標準11 + 追加4)
+const _JIG_OP30_L15 = [
+  ..._JIG_OP20_STD.slice(0,11),
+  {lb:'12',vn:'Tay kẹp nhỏ sản phẩm đầu ra',           ja:'小型ワーク排出クランパー',   tp:'action',cvn:'Không bị sứt mẻ, cong vênh',  cja:'欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'13',vn:'Kẹp palet',                              ja:'パレットクランプ',           tp:'action',cvn:'Không bị sứt mẻ, cong vênh',  cja:'欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'14',vn:'Thanh gạt palet',                        ja:'パレット搬送バー',           tp:'action',cvn:'Hoạt động bình thường',        cja:'正常動作する事',   mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'15',vn:'Thanh chặn sản phẩm',                    ja:'ワークストッパー',           tp:'action',cvn:'Không sứt mẻ, cong vênh, hoạt động BT',cja:'欠け・曲がり無き・正常動作',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+];
+// OP70 Lines 15-18 (13項目 = 標準11 + 追加2)
+const _JIG_OP70_L15 = [
+  ..._JIG_OP70_STD.slice(0,11),
+  {lb:'12',vn:'Kẹp tự nhiên',                           ja:'スプリングクランプ',         tp:'action',cvn:'Không bị sứt mẻ, hoạt động BT', cja:'欠け無き・正常動作',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'13',vn:'Kẹp phụ (chống tâm)',                    ja:'補助クランプ（センター押し）',tp:'action',cvn:'Không bị sứt mẻ, hoạt động BT', cja:'欠け無き・正常動作',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+];
+// Robot OP20/30 (9項目)
+const _JIG_ROBOT_OP2030 = [
+  {lb:'1', vn:'Hoạt động của robot',                    ja:'ローダー動作',               tp:'action',cvn:'Quay/di chuyển bình thường, không tiếng lạ',cja:'正常に動作・異音無き事',mvn:'Mắt+Tai',mja:'目視・耳視',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'2', vn:'Kẹp của robot (LU,LL 2 vị trí)',         ja:'ローダーチャック（LU・LL）',  tp:'action',cvn:'Không va đập cong vênh, không bị mẻ',cja:'打痕・欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'3', vn:'Bulong, vít giữ kẹp robot (LU,LL)',      ja:'ローダーチャック固定ボルト',  tp:'action',cvn:'Không bị lỏng',                cja:'緩み無き事',       mvn:'Lục lăng',  mja:'六角レンチ',pvn:'2 lần/Tuần',pja:'2/週'},
+  {lb:'4', vn:'Xi lanh + Đồ gá trung gian Trái (Left)',  ja:'左シリンダー・サブ治具動作', tp:'action',cvn:'Kẹp đóng mở bình thường, xi lanh 90° OK',cja:'クランプ正常・シリンダー90°正常',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'5', vn:'Kẹp Đồ gá trung gian Trái (Left)',       ja:'左サブ治具チャック',          tp:'action',cvn:'Không va đập cong vênh, không mẻ',cja:'打痕・欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'6', vn:'Bulong, vít giữ kẹp Đồ gá T. gian Trái',ja:'左サブ治具固定ボルト',       tp:'action',cvn:'Không bị lỏng',                cja:'緩み無き事',       mvn:'Lục lăng',  mja:'六角レンチ',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'7', vn:'Xi lanh + Đồ gá trung gian Phải (Right)', ja:'右シリンダー・サブ治具動作', tp:'action',cvn:'Kẹp đóng mở BT, xi lanh 90° + ngang OK',cja:'クランプ正常・シリンダー正常',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'8', vn:'Kẹp Đồ gá trung gian Phải (Right)',      ja:'右サブ治具チャック',          tp:'action',cvn:'Không va đập cong vênh, không mẻ',cja:'打痕・欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'9', vn:'Bulong, vít giữ kẹp Đồ gá T. gian Phải',ja:'右サブ治具固定ボルト',       tp:'action',cvn:'Không bị lỏng',                cja:'緩み無き事',       mvn:'Lục lăng',  mja:'六角レンチ',pvn:'1 lần/Tuần',pja:'1/週'},
+];
+// Robot OP100 Lines 15-18 (10項目)
+const _JIG_ROBOT_OP100 = [
+  {lb:'1', vn:'Nứt Tay kẹp robot',                      ja:'ロボットクランパークラック',  tp:'action',cvn:'Không bị nứt, va đập, cong vênh',cja:'クラック・打痕・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'2', vn:'Kẹp robot',                              ja:'ロボットクランプ動作',        tp:'action',cvn:'Hoạt động bình thường',         cja:'正常動作する事',   mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'3', vn:'Nứt kẹp định hướng sản phẩm',            ja:'製品方向決めクランパークラック',tp:'action',cvn:'Không bị nứt, va đập, cong vênh',cja:'クラック・打痕・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'4', vn:'Kẹp định hướng sản phẩm',                ja:'製品方向決めクランプ動作',    tp:'action',cvn:'Hoạt động bình thường',         cja:'正常動作する事',   mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'5', vn:'Bàn xoay định hướng sản phẩm',           ja:'製品方向決め回転テーブル',    tp:'action',cvn:'Vận hành bình thường',          cja:'正常動作する事',   mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'6', vn:'Nứt kẹp đo sản phẩm',                   ja:'測定クランパークラック',      tp:'action',cvn:'Không bị nứt, va đập, cong vênh',cja:'クラック・打痕・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'7', vn:'Kẹp đo sản phẩm sau khi gia công',       ja:'測定クランプ動作',           tp:'action',cvn:'Hoạt động bình thường',         cja:'正常動作する事',   mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'8', vn:'Đầu đo sản phẩm sau gia công',           ja:'測定ヘッド',                  tp:'action',cvn:'Không dính phoi, không va đập cong vênh',cja:'切粉付着・打痕・曲がり無き事',mvn:'Khăn 3M+RP7',mja:'3Mクロス+RP7',pvn:'2 lần/Ca',pja:'2/直'},
+  {lb:'9', vn:'Con lăn / Chốt chặn palet đầu vào',      ja:'入口コンベアローラー・パレットストッパー',tp:'action',cvn:'Hoạt động bình thường, không mòn, rách',cja:'正常動作・摩耗無き事',mvn:'Tay+mắt',mja:'手感・目視',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'10',vn:'Chốt định vị',                            ja:'位置決めピン',                tp:'action',cvn:'Không bị sứt mẻ, cong vênh',    cja:'欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'},
+];
+// OP130 Lines 1-3 (8項目)
+const _JIG_OP130_L1 = [
+  {lb:'1', vn:'Kẹp bàn gá Trái (thép) - Clamp Trái',   ja:'左クランパー（鉄製）',       tp:'action',cvn:'Hoạt động BT, không lỏng, không vỡ',cja:'動作正常・緩み・クラック無き事',mvn:'Mắt+lục lăng',mja:'目視・六角レンチ',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'2', vn:'Má kẹp Trái (Nhựa Xanh) - Lỏng',        ja:'左クランプ面（青プラスチック）緩み',tp:'action',cvn:'Không bị lỏng',            cja:'緩み無き事',       mvn:'Xiết bulong', mja:'ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'3', vn:'Má kẹp Trái (Nhựa Xanh) - Va đập',      ja:'左クランプ面（青プラスチック）打痕',tp:'action',cvn:'Không bị va đập, mòn, lõm',cja:'打痕・摩耗・凹み無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'4', vn:'Kẹp bàn gá Phải (thép) - Clamp Phải',   ja:'右クランパー（鉄製）',       tp:'action',cvn:'Hoạt động BT, không lỏng, không vỡ',cja:'動作正常・緩み・クラック無き事',mvn:'Mắt+lục lăng',mja:'目視・六角レンチ',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'5', vn:'Má kẹp Phải (Nhựa Xanh) - Lỏng',        ja:'右クランプ面（青プラスチック）緩み',tp:'action',cvn:'Không bị lỏng',            cja:'緩み無き事',       mvn:'Xiết bulong', mja:'ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'6', vn:'Má kẹp Phải (Nhựa Xanh) - Va đập',      ja:'右クランプ面（青プラスチック）打痕',tp:'action',cvn:'Không bị va đập, mòn, lõm',cja:'打痕・摩耗・凹み無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'7', vn:'Vòi Khí vệ sinh bàn gá',                 ja:'エアーノズル（治具清掃）',   tp:'action',cvn:'Xịt đúng vào vị trí cần xịt',  cja:'正しい位置に噴射', mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'8', vn:'Kiểm tra tất cả chổi',                   ja:'ブラシ全数確認',              tp:'action',cvn:'Không bị gãy',                cja:'折れ無き事',       mvn:'Mắt thường',mja:'目視',pvn:'2 lần/Ca',pja:'2/直'},
+];
+// OP150 Lines 1-3 (6項目)
+const _JIG_OP150_L1 = [
+  {lb:'1', vn:'Phần gá đặt chi tiết (tất cả vị trí)',   ja:'治具ユニット（全位置）',      tp:'action',cvn:'Không va đập, không sứt mẻ, cong vênh, kẹp động BT',cja:'打痕・欠け無し・クランパー正常動作',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'2', vn:'Phần di chuyển (kẹp của roda)',           ja:'搬送台（ローダークランパー）', tp:'action',cvn:'Hoạt động BT, không sứt mẻ, cong vênh',cja:'正常動作・欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'3', vn:'Phần điện phân - Điện cực',              ja:'電解部分（電極）',            tp:'action',cvn:'Không lỏng, không mòn, không cong vênh',cja:'緩み・摩耗・屈曲無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'4', vn:'Vệ sinh đồ gá điện phân',                ja:'電解治具清掃',                tp:'action',cvn:'Vệ sinh đồ gá khi nghỉ dài',   cja:'長期停止時に治具清掃',mvn:'Nước+giẻ lau',mja:'水・ウエス',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'5', vn:'Thông đường thoát nước',                 ja:'排水路通水確認',              tp:'action',cvn:'Không bị tắc',                cja:'詰まり無き事',     mvn:'Súng khí,que thép',mja:'エアガン・針金',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'6', vn:'Vệ sinh đồ gá, bọc va đập',              ja:'治具清掃・緩衝材確認',        tp:'action',cvn:'Không bẩn, không có phoi',     cja:'汚れ・切粉無き事', mvn:'Nước+bông mài',mja:'水・研磨スポンジ',pvn:'1 lần/Ca',pja:'1/直'},
+];
+// OP160 Lines 1-3 (8項目)
+const _JIG_OP160_L1 = [
+  {lb:'1', vn:'Kẹp Pallet A',                           ja:'パレットAクランパー',         tp:'action',cvn:'Hoạt động BT, không lỏng, sứt mẻ, cong vênh',cja:'動作正常・緩み・欠け・曲がり無き事',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'2', vn:'Má kẹp nhựa Pallet A (kể cả chốt Pin)',  ja:'パレットAプラスチッククランプ面（ピン含む）',tp:'action',cvn:'Không lỏng, không mòn',cja:'緩み・摩耗無き事',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'3', vn:'Mặt gá Pallet A',                        ja:'パレットA治具面',             tp:'action',cvn:'Không bị sứt mẻ',             cja:'欠け無き事',       mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'4', vn:'Độ Nhạy gá lắp - Airzero Pallet A',      ja:'パレットAエアーゼロ着座感度', tp:'action',cvn:'Lỗ khí không bị tắc',          cja:'排気穴詰まり無き事',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'5', vn:'Kẹp Pallet B',                           ja:'パレットBクランパー',         tp:'action',cvn:'Hoạt động BT, không lỏng, sứt mẻ, cong vênh',cja:'動作正常・緩み・欠け・曲がり無き事',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'6', vn:'Má kẹp nhựa Pallet B (kể cả chốt Pin)',  ja:'パレットBプラスチッククランプ面（ピン含む）',tp:'action',cvn:'Không lỏng, không mòn',cja:'緩み・摩耗無き事',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Ca',pja:'1/直'},
+  {lb:'7', vn:'Mặt gá Pallet B',                        ja:'パレットB治具面',             tp:'action',cvn:'Không bị sứt mẻ',             cja:'欠け無き事',       mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},
+  {lb:'8', vn:'Độ Nhạy gá lắp - Airzero Pallet B',      ja:'パレットBエアーゼロ着座感度', tp:'action',cvn:'Lỗ khí không bị tắc',          cja:'排気穴詰まり無き事',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'},
+];
+
+/* =====================================================
+   治具点検チェックシート 設備辞書 (全LINE)
+   ===================================================== */
+const JIG_DEF = {
+  // Lines 1-10
+  'L1to10_OP20':      _JIG_OP20_STD,
+  'L1to10_OP30':      _JIG_OP20_STD,
+  'L1to10_OP70-1':    _JIG_OP70_STD,
+  'L1to10_OP70-2':    _JIG_OP70_STD,
+  'L1to10_OP70-3':    _JIG_OP70_STD,
+  'L1to10_OP70-4':    _JIG_OP70_STD,
+  'L1to10_OP80':      _JIG_OP80_STD,
+  'L1to10_OP100':     _JIG_OP20_STD,
+  // Lines 1-3 後工程 (追加OP)
+  'L1to3_OP130':      _JIG_OP130_L1,
+  'L1to3_OP150':      _JIG_OP150_L1,
+  'L1to3_OP160':      _JIG_OP160_L1,
+  'L1to3_OP170': [{lb:'1',vn:'Phần gá đặt (tất cả các jig)',ja:'治具ユニット（全治具）',tp:'action',cvn:'Không lỏng, không mòn',cja:'緩み・摩耗無き事',mvn:'Mắt+xiết đồ gá',mja:'目視・治具締め',pvn:'1 lần/Tuần',pja:'1/週'}],
+  'L1to3_OP180': [{lb:'1',vn:'Phần gá đặt (tất cả các jig)',ja:'治具ユニット（全治具）',tp:'action',cvn:'Không lỏng, không mòn',cja:'緩み・摩耗無き事',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'2',vn:'Phần di động (tất cả các kẹp)',ja:'可動部（全クランパー）',tp:'action',cvn:'Hoạt động BT, không mòn, sứt mẻ, cong vênh',cja:'正常動作・摩耗・欠け・曲がり無き事',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'}],
+  'L1to3_OP190': [{lb:'1',vn:'Phần gá đặt',ja:'治具ユニット',tp:'action',cvn:'Không lỏng, không mòn',cja:'緩み・摩耗無き事',mvn:'Mắt+xiết đồ gá',mja:'目視・治具締め',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'2',vn:'Chốt định vị',ja:'位置決めピン',tp:'action',cvn:'Không lỏng, va đập, cong vênh',cja:'緩み・打痕・曲がり無き事',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'3',vn:'Khí Airzero',ja:'エアーゼロ',tp:'action',cvn:'Có sản phẩm: ON / Không có: OFF',cja:'ワーク有:ON・無:OFF',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'}],
+  // Lines 11-14
+  'L11to14_OP20-30R': _JIG_ROBOT_OP2030,
+  'L11to14_OP20':     _JIG_OP20_L11,
+  'L11to14_OP30':     _JIG_OP20_L11,
+  'L11to14_OP70-1':   _JIG_OP70_L11,
+  'L11to14_OP70-2':   _JIG_OP70_L11,
+  'L11to14_OP70-3':   _JIG_OP70_L11,
+  'L11to14_OP70-4':   _JIG_OP70_L11,
+  'L11to14_OP80':     _JIG_OP80_STD,
+  'L11to14_OP100':    _JIG_OP100_L11,
+  // Lines 15-18
+  'L15to18_OP20-30R': _JIG_ROBOT_OP2030,
+  'L15to18_OP20':     _JIG_OP20_L11,
+  'L15to18_OP30':     _JIG_OP30_L15,
+  'L15to18_OP70-1':   _JIG_OP70_L15,
+  'L15to18_OP70-2':   _JIG_OP70_L15,
+  'L15to18_OP70-3':   _JIG_OP70_L15,
+  'L15to18_OP75':     _JIG_OP70_STD,
+  'L15to18_OP80':     _JIG_OP80_STD,
+  'L15to18_OP100':    _JIG_OP100_L11,
+  'L15to18_OP100R-15-16': _JIG_ROBOT_OP100,
+  'L15to18_OP100R-17-18': _JIG_ROBOT_OP100,
+  // Lines 4+5 後工程
+  'L4to5_NhapKhay': [{lb:'1',vn:'Tay kẹp nhỏ',ja:'小型クランパー動作',tp:'action',cvn:'Hoạt động BT',cja:'正常動作',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'2',vn:'Nứt vỡ tay kẹp nhỏ',ja:'小型クランパー欠け',tp:'action',cvn:'Không bị sứt mẻ, cong vênh',cja:'欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'3',vn:'Tay kẹp to',ja:'大型クランパー動作',tp:'action',cvn:'Hoạt động BT',cja:'正常動作',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'4',vn:'Nứt vỡ tay kẹp to',ja:'大型クランパー欠け',tp:'action',cvn:'Không bị sứt mẻ, cong vênh',cja:'欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'5',vn:'Kẹp palet',ja:'パレットクランプ',tp:'action',cvn:'Không cong vênh, hoạt động BT',cja:'曲がり無き・正常動作',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'6',vn:'Chốt định vị',ja:'位置決めピン',tp:'action',cvn:'Không bị sứt mẻ, cong vênh',cja:'欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'7',vn:'Giá nâng hạ khay NL',ja:'原料トレー昇降装置',tp:'action',cvn:'Không cong vênh, hoạt động BT',cja:'曲がり無き・正常動作',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'}],
+  'L4to5_OP130':    _JIG_OP130_L1,
+  'L4to5_OP140': [{lb:'1',vn:'Cụm tay kẹp 1',ja:'クランプユニット1',tp:'action',cvn:'Má kẹp không mòn, lỏng, va đập, kẹp hoạt động BT',cja:'摩耗・緩み・打痕無き・正常動作',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'2',vn:'Cụm tay kẹp 2',ja:'クランプユニット2',tp:'action',cvn:'Má kẹp không mòn, lỏng, va đập, kẹp hoạt động BT',cja:'摩耗・緩み・打痕無き・正常動作',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'3',vn:'Cụm tay kẹp 3',ja:'クランプユニット3',tp:'action',cvn:'Má kẹp không mòn, lỏng, va đập, kẹp hoạt động BT',cja:'摩耗・緩み・打痕無き・正常動作',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'4',vn:'Giá đỡ + Vòi nước/khí buồng rửa thô',ja:'粗洗浄槽ワーク支持・ノズル',tp:'action',cvn:'Không mòn, lỏng, phun đúng hướng',cja:'摩耗・緩み無き・正方向噴射',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'},{lb:'5',vn:'Giá đỡ + Vòi nước/khí buồng rửa tinh',ja:'精密洗浄槽ワーク支持・ノズル',tp:'action',cvn:'Không mòn, lỏng, phun đúng hướng',cja:'摩耗・緩み無き・正方向噴射',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'},{lb:'6',vn:'Giá đỡ + Vòi khí buồng thổi khí',ja:'エアーブロー槽ワーク支持・ノズル',tp:'action',cvn:'Không mòn, lỏng, phun đúng hướng',cja:'摩耗・緩み無き・正方向噴射',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Ca',pja:'1/直'}],
+  'L4to5_OP150':    _JIG_OP150_L1,
+  'L4to5_OP155':    [{lb:'1',vn:'Cụm tay kẹp sản phẩm',ja:'ワーククランプユニット',tp:'action',cvn:'Không mòn, lỏng, lõm, kẹp hoạt động BT',cja:'摩耗・緩み・凹み無き・正常動作',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'2',vn:'Giá đỡ sản phẩm',ja:'ワーク支持台',tp:'action',cvn:'Không bị mòn, lõm',cja:'摩耗・凹み無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'3',vn:'Tay kẹp đảo chiều',ja:'反転クランパー',tp:'action',cvn:'Không mòn, lỏng, lõm, kẹp hoạt động BT',cja:'摩耗・緩み・凹み無き・正常動作',mvn:'Mắt+xiết bulong',mja:'目視・ボルト締め',pvn:'1 lần/Tuần',pja:'1/週'}],
+  'L4to5_OP160':    _JIG_OP160_L1,
+  'L4to5_OP170': [{lb:'1',vn:'Giá đỡ SP đầu vào đến đầu ra',ja:'入口～出口ワーク支持台',tp:'action',cvn:'Phần gá đặt không bị mòn, lỏng',cja:'摩耗・緩み無き事',mvn:'Mắt+xiết đồ gá',mja:'目視・治具締め',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'2',vn:'Cụm tay kẹp sản phẩm (tất cả)',ja:'ワーククランプユニット（全数）',tp:'action',cvn:'Không bị sứt mẻ, cong vênh',cja:'欠け・曲がり無き事',mvn:'Mắt thường',mja:'目視',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'3',vn:'Kẹp sản phẩm (tất cả tay kẹp)',ja:'ワーククランプ（全クランパー）',tp:'action',cvn:'Hoạt động bình thường',cja:'正常動作する事',mvn:'Mắt+xiết đồ gá',mja:'目視・治具締め',pvn:'1 lần/Tuần',pja:'1/週'}],
+  'L4to5_OP180': [{lb:'1',vn:'Phần gá đặt (tất cả các jig)',ja:'治具ユニット（全治具）',tp:'action',cvn:'Không lỏng, không mòn',cja:'緩み・摩耗無き事',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'2',vn:'Phần di động (tất cả các kẹp)',ja:'可動部（全クランパー）',tp:'action',cvn:'Hoạt động BT, không mòn, sứt mẻ, cong vênh',cja:'正常動作・摩耗・欠け・曲がり無き事',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'}],
+  'L4to5_OP190': [{lb:'1',vn:'Phần gá đặt',ja:'治具ユニット',tp:'action',cvn:'Không lỏng, không mòn',cja:'緩み・摩耗無き事',mvn:'Mắt+xiết đồ gá',mja:'目視・治具締め',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'2',vn:'Chốt định vị',ja:'位置決めピン',tp:'action',cvn:'Không lỏng, va đập, cong vênh',cja:'緩み・打痕・曲がり無き事',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'},{lb:'3',vn:'Khí Airzero',ja:'エアーゼロ',tp:'action',cvn:'Có SP: ON / Không có: OFF',cja:'ワーク有:ON・無:OFF',mvn:'Mắt+bằng tay',mja:'目視・手感',pvn:'1 lần/Tuần',pja:'1/週'}],
+};
+
+/* =====================================================
+   治具点検 設備リスト (全LINE)
+   ===================================================== */
+
+/* =====================================================
+   治具点検 設備リスト & セクション (全LINE個別)
+   ===================================================== */
+
+/* 共通OP定義（defKey → JIG_DEFのキー） */
+const _JIG_OPS_L1to10 = [
+  {key:'OP20',  defKey:'L1to10_OP20',  procJa:'OP20 旋盤加工（治具）',  procVn:'OP20 GC tiện (Đồ gá)',     machJa:'NC旋盤（TAKISAWA）', machVn:'Tiện NC (TAKISAWA)'},
+  {key:'OP30',  defKey:'L1to10_OP30',  procJa:'OP30 旋盤加工（治具）',  procVn:'OP30 GC tiện (Đồ gá)',     machJa:'NC旋盤（TAKISAWA）', machVn:'Tiện NC (TAKISAWA)'},
+  {key:'OP70-1',defKey:'L1to10_OP70-1',procJa:'OP70 CNC 1号機（治具）', procVn:'OP70 CNC Máy 1 (Đồ gá)',  machJa:'MC（SUGINO）',      machVn:'MC (SUGINO)'},
+  {key:'OP70-2',defKey:'L1to10_OP70-2',procJa:'OP70 CNC 2号機（治具）', procVn:'OP70 CNC Máy 2 (Đồ gá)',  machJa:'MC（SUGINO）',      machVn:'MC (SUGINO)'},
+  {key:'OP70-3',defKey:'L1to10_OP70-3',procJa:'OP70 CNC 3号機（治具）', procVn:'OP70 CNC Máy 3 (Đồ gá)',  machJa:'MC（SUGINO）',      machVn:'MC (SUGINO)'},
+  {key:'OP70-4',defKey:'L1to10_OP70-4',procJa:'OP70 CNC 4号機（治具）', procVn:'OP70 CNC Máy 4 (Đồ gá)',  machJa:'MC（SUGINO）',      machVn:'MC (SUGINO)'},
+  {key:'OP80',  defKey:'L1to10_OP80',  procJa:'OP80 洗浄機（治具）',    procVn:'OP80 Máy rửa (Đồ gá)',    machJa:'洗浄機',            machVn:'Máy rửa'},
+  {key:'OP100', defKey:'L1to10_OP100', procJa:'OP100 旋盤加工（治具）', procVn:'OP100 GC tiện (Đồ gá)',   machJa:'NC旋盤（TAKISAWA）', machVn:'Tiện NC (TAKISAWA)'},
+];
+const _JIG_OPS_POST1to3 = [
+  {key:'OP130', defKey:'L1to3_OP130',  procJa:'OP130 切粉取・バリ取（治具）',procVn:'OP130 Lấy phoi (Đồ gá)', machJa:'チッピングマシン',machVn:'Máy lấy phoi'},
+  {key:'OP150', defKey:'L1to3_OP150',  procJa:'OP150 電解バリ取（治具）', procVn:'OP150 Điện phân (Đồ gá)', machJa:'電解バリ取機',     machVn:'Máy điện phân'},
+  {key:'OP160', defKey:'L1to3_OP160',  procJa:'OP160 高圧洗浄（治具）',   procVn:'OP160 Rửa cao áp (Đồ gá)',machJa:'高圧洗浄機',       machVn:'Máy rửa cao áp'},
+  {key:'OP170', defKey:'L1to3_OP170',  procJa:'OP170 洗浄機（治具）',     procVn:'OP170 Máy rửa (Đồ gá)',   machJa:'洗浄機',            machVn:'Máy rửa'},
+  {key:'OP180', defKey:'L1to3_OP180',  procJa:'OP180 測定機（治具）',     procVn:'OP180 Máy đo (Đồ gá)',    machJa:'測定機',            machVn:'Máy đo'},
+  {key:'OP190', defKey:'L1to3_OP190',  procJa:'OP190 内視鏡（治具）',     procVn:'OP190 Nội soi (Đồ gá)',   machJa:'内視鏡',            machVn:'Máy nội soi'},
+];
+const _JIG_OPS_L11to14 = [
+  {key:'RobotOP2030',defKey:'L11to14_OP20-30R',procJa:'Robot OP20/30（治具）',procVn:'Robot OP20/30 (Đồ gá)',machJa:'FUJI',machVn:'FUJI'},
+  {key:'OP20',  defKey:'L11to14_OP20',  procJa:'OP20 旋盤加工（治具）',  procVn:'OP20 GC tiện (Đồ gá)',    machJa:'FUJI',machVn:'FUJI'},
+  {key:'OP30',  defKey:'L11to14_OP30',  procJa:'OP30 旋盤加工（治具）',  procVn:'OP30 GC tiện (Đồ gá)',    machJa:'FUJI',machVn:'FUJI'},
+  {key:'OP70-1',defKey:'L11to14_OP70-1',procJa:'OP70 CNC 1号機（治具）', procVn:'OP70 CNC Máy 1 (Đồ gá)', machJa:'KIWA',machVn:'KIWA'},
+  {key:'OP70-2',defKey:'L11to14_OP70-2',procJa:'OP70 CNC 2号機（治具）', procVn:'OP70 CNC Máy 2 (Đồ gá)', machJa:'KIWA',machVn:'KIWA'},
+  {key:'OP70-3',defKey:'L11to14_OP70-3',procJa:'OP70 CNC 3号機（治具）', procVn:'OP70 CNC Máy 3 (Đồ gá)', machJa:'KIWA',machVn:'KIWA'},
+  {key:'OP70-4',defKey:'L11to14_OP70-4',procJa:'OP70 CNC 4号機（治具）', procVn:'OP70 CNC Máy 4 (Đồ gá)', machJa:'KIWA',machVn:'KIWA'},
+  {key:'OP80',  defKey:'L11to14_OP80',  procJa:'OP80 洗浄機（治具）',    procVn:'OP80 Máy rửa (Đồ gá)',   machJa:'洗浄機',machVn:'Máy rửa'},
+  {key:'OP100', defKey:'L11to14_OP100', procJa:'OP100 旋盤加工（治具）', procVn:'OP100 GC tiện (Đồ gá)',  machJa:'NC旋盤（TAKISAWA）',machVn:'Tiện NC'},
+];
+const _JIG_OPS_L15to18 = [
+  {key:'RobotOP2030',defKey:'L15to18_OP20-30R',procJa:'Robot OP20/30（治具）',procVn:'Robot OP20/30 (Đồ gá)',machJa:'FUJI',machVn:'FUJI'},
+  {key:'OP20',  defKey:'L15to18_OP20',  procJa:'OP20 旋盤加工（治具）',  procVn:'OP20 GC tiện (Đồ gá)',    machJa:'FUJI',machVn:'FUJI'},
+  {key:'OP30',  defKey:'L15to18_OP30',  procJa:'OP30 旋盤加工（治具）',  procVn:'OP30 GC tiện (Đồ gá)',    machJa:'FUJI',machVn:'FUJI'},
+  {key:'OP70-1',defKey:'L15to18_OP70-1',procJa:'OP70 CNC 1号機（治具）', procVn:'OP70 CNC Máy 1 (Đồ gá)', machJa:'FANUC',machVn:'FANUC'},
+  {key:'OP70-2',defKey:'L15to18_OP70-2',procJa:'OP70 CNC 2号機（治具）', procVn:'OP70 CNC Máy 2 (Đồ gá)', machJa:'FANUC',machVn:'FANUC'},
+  {key:'OP70-3',defKey:'L15to18_OP70-3',procJa:'OP70 CNC 3号機（治具）', procVn:'OP70 CNC Máy 3 (Đồ gá)', machJa:'FANUC',machVn:'FANUC'},
+  {key:'OP75',  defKey:'L15to18_OP75',  procJa:'OP75 CNC（治具）',       procVn:'OP75 CNC (Đồ gá)',        machJa:'FANUC',machVn:'FANUC'},
+  {key:'OP80',  defKey:'L15to18_OP80',  procJa:'OP80 洗浄機（治具）',    procVn:'OP80 Máy rửa (Đồ gá)',   machJa:'洗浄機',machVn:'Máy rửa'},
+  {key:'OP100', defKey:'L15to18_OP100', procJa:'OP100 旋盤加工（治具）', procVn:'OP100 GC tiện (Đồ gá)',  machJa:'NC旋盤（TAKISAWA）',machVn:'Tiện NC'},
+  {key:'RobotOP100',defKey:'L15to18_OP100R-15-16',procJa:'Robot OP100（治具）',procVn:'Robot OP100 (Đồ gá)',machJa:'NC旋盤+Robot',machVn:'NC+Robot'},
+];
+
+/* JIG_ACTIVE_EQUIPMENT と JIG_SECTIONS をコンフィグから生成 */
+const JIG_ACTIVE_EQUIPMENT = {};
+const JIG_SECTIONS = [];
+
+function _buildJigSection(secLabel, lines, opList){
+  const sec = {label:secLabel, lines:[]};
+  lines.forEach(line=>{
+    const lineOps = [];
+    opList.forEach(op=>{
+      const key = line + '_' + op.key;
+      JIG_ACTIVE_EQUIPMENT[key] = {
+        title:   line + ' ' + op.key,
+        titleVn: line + ' ' + op.key,
+        op:      op.defKey,
+        procJa:  op.procJa,
+        procVn:  op.procVn,
+        machJa:  op.machJa || '',
+        machVn:  op.machVn || '',
+        dept:    'OVT'
+      };
+      lineOps.push(op.key);
+    });
+    sec.lines.push({line:line, ops:lineOps});
+  });
+  JIG_SECTIONS.push(sec);
+}
+
+const _L1to10  = ['1Line','2Line','3Line','4Line','5Line','6Line','7Line','8Line','9Line','10Line'];
+const _L1to3   = ['1Line','2Line','3Line'];
+const _L11to14 = ['11Line','12Line','13Line','14Line'];
+const _L15to18 = ['15Line','16Line','17Line','18Line'];
+
+// 1) Line 1-10 (OP20-100)
+_buildJigSection({ja:'1Line 〜 10Line（OP20〜OP100）',vn:'Line 1-10 (OP20-OP100)'}, _L1to10,  _JIG_OPS_L1to10);
+// 2) Line 11-14
+_buildJigSection({ja:'11Line 〜 14Line',                vn:'Line 11-14'},               _L11to14, _JIG_OPS_L11to14);
+// 3) Line 15-18
+_buildJigSection({ja:'15Line 〜 18Line',                vn:'Line 15-18'},               _L15to18, _JIG_OPS_L15to18);
+
+// 4) 後工程 (1Line〜5Line) - 統合・最下段
+(function(){
+  const sec={label:{ja:'1Line 〜 5Line（後工程）',vn:'Line 1-5 (Sau công đoạn)'},lines:[]};
+  // Line 1-3 と Line 4-5 で扱うOPが異なる。共通の表示順を定義し、不在のOPは無効ボタンで表示
+  const allOps=['NhapKhay','OP130','OP140','OP150','OP155','OP160','OP170','OP180','OP190'];
+  const opMeta={
+    NhapKhay:{procJa:'原料トレー投入',procVn:'Nhập khay NL'},
+    OP130:   {procJa:'OP130 切粉取・バリ取',procVn:'OP130 Lấy phoi'},
+    OP140:   {procJa:'OP140 洗浄機',       procVn:'OP140 Máy rửa'},
+    OP150:   {procJa:'OP150 電解バリ取',   procVn:'OP150 Điện phân'},
+    OP155:   {procJa:'OP155 反転機',       procVn:'OP155 Đảo chiều'},
+    OP160:   {procJa:'OP160 高圧洗浄',     procVn:'OP160 Rửa cao áp'},
+    OP170:   {procJa:'OP170 洗浄機',       procVn:'OP170 Máy rửa'},
+    OP180:   {procJa:'OP180 測定機',       procVn:'OP180 Máy đo'},
+    OP190:   {procJa:'OP190 内視鏡',       procVn:'OP190 Nội soi'},
+  };
+  // Line 1-3 が持つOP (Nhập khay, OP140, OP155 は無し)
+  const opsL1to3=['OP130','OP150','OP160','OP170','OP180','OP190'];
+  // Line 4-5 が持つOP (全部)
+  const opsL4to5=allOps;
+  // 各ラインの defKey マッピング
+  const defKeyOf=(line,opKey)=>{
+    if(['1Line','2Line','3Line'].includes(line)){
+      return 'L1to3_'+opKey;
+    }
+    return 'L4to5_'+opKey;
+  };
+
+  ['1Line','2Line','3Line','4Line','5Line'].forEach(line=>{
+    const isL123 = ['1Line','2Line','3Line'].includes(line);
+    const availOps = isL123 ? opsL1to3 : opsL4to5;
+    const lineOps=[];
+    allOps.forEach(opKey=>{
+      if(!availOps.includes(opKey)){
+        // このLineにこのOPは存在しない → disabled表示
+        lineOps.push({key:opKey,disabled:true});
+        return;
+      }
+      const key=line+'_'+opKey;
+      const dk=defKeyOf(line,opKey);
+      const meta=opMeta[opKey];
+      JIG_ACTIVE_EQUIPMENT[key]={
+        title:line+' '+opKey,titleVn:line+' '+opKey,
+        op:dk,procJa:meta.procJa,procVn:meta.procVn,
+        machJa:'',machVn:'',dept:'OVT'
+      };
+      lineOps.push({key:opKey,disabled:false});
+    });
+    sec.lines.push({line:line,ops:lineOps});
+  });
+  JIG_SECTIONS.push(sec);
+})();
+
+/* 現在のモード: 'equip'=設備点検 / 'jig'=治具点検 */
+let currentMode = 'equip';
+
+function jigStorageKey(eqKey){ return 'jig_'+eqKey.replace(/[/ ]/g,'_')+'_v1'; }
+function jigWeeklyKey(eqKey){  return 'jig_wk_'+eqKey.replace(/[/ ]/g,'_')+'_v1'; }
+
+function getActiveEquipment(){ return currentMode==='jig'?JIG_ACTIVE_EQUIPMENT:ACTIVE_EQUIPMENT; }
+function getDefDict(){        return currentMode==='jig'?JIG_DEF:DEF; }
+
+function eqStKey(eqKey){
+  return currentMode==='jig'?jigStorageKey(eqKey):eqStorageKey(eqKey);
+}
+function eqWkKey(eqKey){
+  return currentMode==='jig'?jigWeeklyKey(eqKey):eqWeeklyKey(eqKey);
+}
+
+function chkR(item,val){
+  if(val===''||val===null||val===undefined)return'empty';
+  const n=parseFloat(val);if(isNaN(n))return'empty';
+  if(item.min===undefined||item.max===undefined)return'empty';
+  return(n>=item.min&&n<=item.max)?'in-range':'out-range';
+}
+
+
+
+/* =====================================================
+   タブ切替
+   ===================================================== */
+function ST(n){
+  ['input','history','stats','share'].forEach(t=>{
+    document.getElementById('p-'+t).style.display=t===n?'block':'none';
+    document.getElementById('t-'+t).classList.toggle('active',t===n);
+  });
+  if(n==='history')renderHistory();
+  if(n==='stats')renderStats();
+  if(n==='share')renderShare();
+}
+
+/* =====================================================
+   点検入力
+   ===================================================== */
+
+/* Line名称マッピング */
+function getLineName(eqKey, isJA){
+  if(!eqKey) return '';
+  const prefix = eqKey.split('_')[0];
+  const map = {
+    // 設備点検キー（そのまま返す）
+    '1Line':'1Line','2Line':'2Line','3Line':'3Line','4Line':'4Line','5Line':'5Line',
+    '6Line':'6Line','7Line':'7Line','8Line':'8Line','9Line':'9Line','10Line':'10Line',
+    '11Line':'11Line','12Line':'12Line','13Line':'13Line','14Line':'14Line',
+    '15Line':'15Line','16Line':'16Line','17Line':'17Line','18Line':'18Line',
+    // 治具点検キー
+    'L1to10': isJA?'Line 1-10':'Line 1-10',
+    'L1to3':  isJA?'Line 1-3（後工程）':'Line 1-3 (Sau CĐ)',
+    'L11to14':isJA?'Line 11-14':'Line 11-14',
+    'L15to18':isJA?'Line 15-18':'Line 15-18',
+    'L4to5':  isJA?'Line 4+5（後工程）':'Line 4+5 (Sau CĐ)',
+  };
+  return map[prefix] || prefix;
+}
+
+function renderInput(){
+  const pane=document.getElementById('p-input');
+  const sh=CM.shift||'D';
+  const _eqInfo=currentEquipment?getActiveEquipment()[currentEquipment]:null;
+  const _isJA=LANG==='ja';
+  let h=`
+  <div class="card">
+    <div class="ctitle">${L('sec_basic')}</div>
+    <div class="frow"><span class="flabel">${L('f_date')}</span><input class="finput" type="date" id="fi-dt" value="${CM.date}"></div>
+    <div class="frow">
+      <span class="flabel">${L('f_shift')}</span>
+      <div class="shift-sel">
+        <button class="shift-btn day${sh==='D'?' on':''}" onclick="setShift('D')">${L('f_day')}</button>
+        <button class="shift-btn night${sh==='N'?' on':''}" onclick="setShift('N')">${L('f_night')}</button>
+      </div>
+    </div>
+    <div class="frow"><span class="flabel">工場名</span><span class="finput" style="border:none;padding-left:0;color:var(--muted)">OGINO VIETNAM TU SON</span></div>
+    <div class="frow"><span class="flabel">LINE</span><span class="finput" style="border:none;background:var(--gray-l);color:var(--text);font-weight:700;font-size:15px">${escH(getLineName(currentEquipment,_isJA))}</span></div>
+    <div class="frow"><span class="flabel">${L('f_plant')}</span><span class="finput" style="border:none;background:var(--gray-l);color:var(--text);font-weight:600">${escH(_eqInfo?(_isJA?_eqInfo.procJa:_eqInfo.procVn):'')}</span></div>
+    <div class="frow"><span class="flabel">${L('f_opD')}</span><input class="finput" type="text" id="fi-op" placeholder="${L('f_opD')}" value="${escH(CM.op)}"></div>
+  </div>
+  <div class="pwrap">
+    <div class="pbar"><div class="pfill" id="pf" style="width:0%"></div></div>
+    <span class="ptxt" id="pt">0%</span>
+  </div>
+  <div class="card">
+    <div class="ctitle" style="display:flex;align-items:center;justify-content:space-between">
+      <span>${L('sec_items')}</span>
+      <span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;${sh==='D'?'background:#fff8e1;color:#f57f17':'background:#e8eaf6;color:#283593'}">${sh==='D'?L('f_day').replace('☀ ',''):L('f_night').replace('🌙 ','')}</span>
+    </div>`;
+
+  ITEMS.forEach((item,idx)=>{
+    const cv=CV[idx]||{};
+    const filled=item.tp==='numeric'?(cv[sh+'v']!==undefined&&cv[sh+'v']!==''):!!cv[sh];
+    const nm=iN(item),cr=iC(item),mt=iM(item),pr=iP(item),al=iA(item);
+    h+=`<div class="iitem" style="${filled?'':'border-left:3px solid #ffb3b3'}">
+      <div class="itop">
+        <div class="ino" style="${filled?'':'background:#ffebee;color:var(--red)'}">${item.lb}</div>
+        <div class="iinfo">
+          <div class="iname">${nm}</div>
+          <div class="isub">${cr} | ${mt} | ${pr}</div>
+          ${al?'<span class="ialert">'+al+'</span>':''}
+        </div>
+      </div>`;
+    if(item.tp==='numeric'){
+      const cv2=cv[sh+'v']!==undefined?cv[sh+'v']:'';
+      const rng=chkR(item,cv2);
+      const st=rng==='in-range'?L('in_range'):rng==='out-range'?L('out_range'):cr;
+      const dp=cv2!==''?cv2+' '+item.unit:L('tap');
+      h+=`<div class="dnrow">
+        <div class="nwrap ${rng!=='empty'?rng:''}" id="nw${idx}${sh}" onclick="openNP(${idx},'${sh}')">
+          <span id="nv${idx}${sh}" class="nval" style="color:${cv2===''?'var(--muted)':'var(--text)'}">${dp}</span>
+          <span style="font-size:20px;color:var(--muted)">⌨</span>
+        </div>
+        <span class="nstat ${rng}" id="ns${idx}${sh}">${st}</span>
+      </div>`;
+    }else{
+      const sel=cv[sh]||null;
+      const mkb=(v,lbl)=>`<button class="dnbtn${sel===v?' '+v.toLowerCase():''}" id="b${idx}${sh}${v}" onclick="setDN(${idx},'${sh}','${v}')">${lbl}</button>`;
+      h+=`<div class="dnrow"><div class="dnbtns">${mkb('OK',L('btn_ok'))}${mkb('NG',L('btn_ng'))}${mkb('NA',L('btn_na'))}</div></div>`;
+    }
+    h+=`<textarea class="remark" rows="1" placeholder="${LANG==='ja'?'備考（任意）':'Ghi chú (tùy chọn)'}" id="rk${idx}">${cv.note||''}</textarea></div>`;
+  });
+
+  h+=`</div>
+  <button class="savebtn" id="sbtn" onclick="saveRec()" disabled>${L('btn_save')} (0/${ITEMS.length})</button>
+  <p class="savehint" id="shint"></p>`;
+
+  pane.innerHTML=h;
+
+  const bind=(id,key,ev='input')=>{const el=document.getElementById(id);if(el)el.addEventListener(ev,e=>{CM[key]=e.target.value})};
+  bind('fi-dt','date','change');bind('fi-op','op');
+  ITEMS.forEach((_,idx)=>{
+    const el=document.getElementById('rk'+idx);
+    if(el)el.addEventListener('input',e=>{if(!CV[idx])CV[idx]={};CV[idx].note=e.target.value});
+  });
+  updProg();
+}
+
+function setShift(s){
+  const opEl=document.getElementById('fi-op');
+  if(opEl)CM.op=opEl.value;
+  const dtEl=document.getElementById('fi-dt');
+  if(dtEl)CM.date=dtEl.value;
+  CM.shift=s;renderInput();
+}
+
+function updProg(){
+  const sh=CM.shift||'D';
+  let done=0; const missing=[];
+  ITEMS.forEach((item,idx)=>{
+    const cv=CV[idx]||{};
+    const ok=item.tp==='numeric'?(cv[sh+'v']!==undefined&&cv[sh+'v']!==''):!!cv[sh];
+    if(ok)done++;else missing.push(item.lb+'.'+iN(item));
+  });
+  const pct=Math.round(done/ITEMS.length*100);
+  const f=document.getElementById('pf');const t2=document.getElementById('pt');
+  if(f){f.style.width=pct+'%';f.style.background=done===ITEMS.length?'var(--green)':'var(--blue)'}
+  if(t2)t2.textContent=pct+'% ('+done+'/'+ITEMS.length+')';
+  const btn=document.getElementById('sbtn');const hint=document.getElementById('shint');
+  if(btn){
+    btn.disabled=done!==ITEMS.length;
+    if(done===ITEMS.length){btn.textContent=L('all_done');btn.style.background='var(--green)'}
+    else{btn.textContent=L('btn_save')+' ('+done+'/'+ITEMS.length+')';btn.style.background=''}
+  }
+  if(hint){
+    if(missing.length){hint.textContent=L('remain_pre')+missing.length+L('remain_suf')+': '+missing.slice(0,3).join(', ')+(missing.length>3?'...':'')}
+    else hint.textContent='';
+  }
+}
+
+/* =====================================================
+   テンキー
+   ===================================================== */
+let _ni=null,_nr=null,_nv='';
+
+function openNP(idx,row){
+  _ni=idx;_nr=row;
+  const cv=CV[idx]||{};
+  _nv=(cv[row+'v']!==undefined&&cv[row+'v']!=='')?String(cv[row+'v']):'';
+  const item=ITEMS[idx];
+  const caLbl=CM.shift==='D'?L('f_day').replace('☀ ',''):L('f_night').replace('🌙 ','');
+  document.getElementById('npLbl').textContent=iN(item)+' ('+caLbl+')';
+  document.getElementById('npUnit').textContent=item.unit;
+  document.getElementById('npRange').textContent=(LANG==='ja'?'基準: ':'Tiêu chuẩn: ')+iC(item);
+  updND();
+  document.getElementById('npOv').classList.add('open');
+}
+function updND(){
+  const item=ITEMS[_ni];
+  const d=document.getElementById('npDisp');
+  d.textContent=_nv===''?'—':_nv;
+  const r=chkR(item,_nv);
+  d.className='np-disp'+(r==='in-range'?' in-range':r==='out-range'?' out-range':'');
+}
+function npP(ch){
+  const md=(ITEMS[_ni]&&ITEMS[_ni].dec)||1;
+  if(ch==='.'&&_nv.includes('.'))return;
+  if(_nv.includes('.')&&_nv.split('.')[1].length>=md)return;
+  if(_nv==='0'&&ch!=='.')_nv=ch;else _nv+=ch;
+  updND();
+}
+function npBk(){_nv=_nv.slice(0,-1);updND()}
+function npCl(){document.getElementById('npOv').classList.remove('open')}
+function npOK(){
+  if(_ni===null)return;
+  const item=ITEMS[_ni];const row=_nr;
+  const md=item.dec||1;const fac=Math.pow(10,md);
+  const rounded=(_nv!==''&&!isNaN(parseFloat(_nv)))?(Math.round(parseFloat(_nv)*fac)/fac).toFixed(md):'';
+  if(!CV[_ni])CV[_ni]={};
+  CV[_ni][row+'v']=rounded;
+  const rng=chkR(item,rounded);
+  CV[_ni][row]=rng==='in-range'?'OK':rng==='out-range'?'NG':null;
+  const wrap=document.getElementById('nw'+_ni+row);
+  const disp=document.getElementById('nv'+_ni+row);
+  const stat=document.getElementById('ns'+_ni+row);
+  if(wrap)wrap.className='nwrap'+(rng!=='empty'?' '+rng:'');
+  if(disp){disp.textContent=rounded!==''?rounded+' '+item.unit:L('tap');disp.style.color=rounded!==''?'var(--text)':'var(--muted)'}
+  if(stat){stat.className='nstat '+rng;stat.textContent=rng==='in-range'?L('in_range'):rng==='out-range'?L('out_range'):iC(item)}
+  updProg();npCl();
+}
+document.getElementById('npOv').addEventListener('click',e=>{if(e.target===document.getElementById('npOv'))npCl()});
+
+/* =====================================================
+   OK/NG/NAボタン
+   ===================================================== */
+function setDN(idx,row,val){
+  if(!CV[idx])CV[idx]={};
+  CV[idx][row]=CV[idx][row]===val?null:val;
+  const cur=CV[idx][row];
+  ['OK','NG','NA'].forEach(v=>{const b=document.getElementById('b'+idx+row+v);if(b)b.className='dnbtn'+(cur===v?' '+v.toLowerCase():'')});
+  updProg();
+}
+
+/* =====================================================
+   保存
+   ===================================================== */
+function saveRec(){
+  const _dtEl=document.getElementById('fi-dt');if(_dtEl)CM.date=_dtEl.value;
+  const _opEl=document.getElementById('fi-op');if(_opEl)CM.op=_opEl.value;
+  if(!CM.date){showToast(L('need_date'));return}
+  const sh=CM.shift||'D';
+  const missing=[];
+  ITEMS.forEach((item,idx)=>{
+    const cv=CV[idx]||{};
+    const ok=item.tp==='numeric'?(cv[sh+'v']!==undefined&&cv[sh+'v']!==''):!!cv[sh];
+    if(!ok)missing.push(item.lb);
+  });
+  if(missing.length){showToast(missing.length+L('need_all'));return}
+  ITEMS.forEach((_,idx)=>{const el=document.getElementById('rk'+idx);if(el){if(!CV[idx])CV[idx]={};CV[idx].note=el.value}});
+  // 数値の最終丸め
+  ITEMS.forEach((item,idx)=>{
+    if(item.tp==='numeric'){
+      const md=item.dec||1;const fac=Math.pow(10,md);
+      ['D','N'].forEach(r=>{
+        const v=(CV[idx]||{})[r+'v'];
+        if(v!==undefined&&v!==''&&!isNaN(parseFloat(v))){
+          if(!CV[idx])CV[idx]={};
+          CV[idx][r+'v']=(Math.round(parseFloat(v)*fac)/fac).toFixed(md);
+        }
+      });
+    }
+  });
+  const eqInf=currentEquipment?ACTIVE_EQUIPMENT[currentEquipment]:null;
+  const rec={id:Date.now(),date:CM.date,eqKey:currentEquipment,op:CM.op,shift:CM.shift,vals:JSON.parse(JSON.stringify(CV))};
+  records.unshift(rec);sdr();
+  showToast(L('saved'));
+  CV={};CM={date:td(),shift:CM.shift,op:CM.op};
+  renderInput();
+}
+
+/* =====================================================
+   週次確認
+   ===================================================== */
+function openWM(){
+  updateUI();
+  document.getElementById('wmInput').value='';
+  document.getElementById('wmOv').classList.add('open');
+  setTimeout(()=>document.getElementById('wmInput').focus(),100);
+}
+function wmOK(){
+  const name=(document.getElementById('wmInput').value||'').trim();
+  if(!name)return;
+  const wk=getWk(td());
+  weekly.unshift({id:Date.now(),date:td(),week:wk,name:name});
+  sdw();
+  document.getElementById('wmOv').classList.remove('open');
+  showToast(L('w_saved'));
+}
+function getWk(dateStr){
+  const d=new Date(dateStr);
+  const jan1=new Date(d.getFullYear(),0,1);
+  const wn=Math.ceil(((d-jan1)/86400000+jan1.getDay()+1)/7);
+  return d.getFullYear()+'-W'+String(wn).padStart(2,'0');
+}
+
+/* =====================================================
+   集計ヘルパー
+   ===================================================== */
+function sumRec(r){
+  let ok=0,ng=0,na=0,done=0;
+  ITEMS.forEach((item,idx)=>{
+    const v=(r.vals||{})[idx]||{};
+    ['D','N'].forEach(row=>{
+      let st;
+      if(item.tp==='numeric'){const val=row==='D'?v.Dv:v.Nv;const rng=chkR(item,val);st=rng==='in-range'?'OK':rng==='out-range'?'NG':null}
+      else{st=v[row]||null}
+      if(st==='OK'){ok++;done++}else if(st==='NG'){ng++;done++}else if(st==='NA'){na++;done++}
+    });
+  });
+  return{ok,ng,na,done,total:ITEMS.length*2};
+}
+
+/* =====================================================
+   履歴
+   ===================================================== */
+function renderHistory(){
+  const pane=document.getElementById('p-history');
+  if(!records.length){pane.innerHTML='<div class="empty">'+L('no_data')+'</div>';return}
+  let h='<div class="card">';
+  records.slice(0,50).forEach(r=>{
+    const s=sumRec(r);
+    const op=r.op||'—';
+    h+=`<div class="hitem" onclick="openDet(${r.id})">
+      <div class="hdate">${r.date.replace(/-/g,'/')} <span style="font-size:12px;color:var(--muted);font-weight:400">${escH(r.factory||'')}</span></div>
+      <div class="hmeta">${L('f_opD')}: ${escH(op)}</div>
+      <div class="badges">
+        <span class="badge bok">${LANG==='ja'?'OK':'Bình thường'} ${s.ok}</span>
+        ${s.ng?`<span class="badge bng">${LANG==='ja'?'NG':'Bất thường'} ${s.ng}</span>`:''}
+        ${s.na?`<span class="badge bna">${LANG==='ja'?'非該当':'Không áp dụng'} ${s.na}</span>`:''}
+        <span class="badge" style="background:#f0f4f8;color:#5a6472">${s.done}/${s.total}</span>
+      </div>
+    </div>`;
+  });
+  h+='</div>';pane.innerHTML=h;
+}
+
+function openDet(id){
+  const r=records.find(x=>x.id===id);if(!r)return;
+  document.getElementById('modTitle').textContent=r.date.replace(/-/g,'/')+' — '+(r.op||'—');
+  document.getElementById('modCls').textContent=L('close');
+  let h=`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+    ${L('f_opD')}: ${escH(r.op||'—')}
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 70px 70px;font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border)">
+    <span>${L('sec_items')}</span><span style="text-align:center">${L('col_d')}</span><span style="text-align:center">${L('col_n')}</span>
+  </div>`;
+  ITEMS.forEach((item,idx)=>{
+    const v=(r.vals||{})[idx]||{};
+    let dD,nD,dC,nC;
+    if(item.tp==='numeric'){
+      const dR=chkR(item,v.Dv),nR=chkR(item,v.Nv);
+      dD=(v.Dv!==undefined&&v.Dv!=='')?v.Dv+item.unit:L('not_in');
+      nD=(v.Nv!==undefined&&v.Nv!=='')?v.Nv+item.unit:L('not_in');
+      dC=dR==='in-range'?'vok':dR==='out-range'?'vng':'vem';
+      nC=nR==='in-range'?'vok':nR==='out-range'?'vng':'vem';
+    }else{
+      const f=s=>s==='OK'?'✓':s==='NG'?'✗':s==='NA'?'—':'–';
+      const c=s=>s==='OK'?'vok':s==='NG'?'vng':s==='NA'?'vna':'vem';
+      dD=f(v.D);dC=c(v.D);nD=f(v.N);nC=c(v.N);
+    }
+    h+=`<div class="mrow"><span class="mkey">${item.lb}. ${iN(item)}</span><span class="md ${dC}">${dD}</span><span class="mn ${nC}">${nD}</span></div>`;
+    if(v.note)h+=`<div style="font-size:11px;color:var(--orange);padding:2px 0 6px 16px">${LANG==='ja'?'備考':'Ghi chú'}: ${escH(v.note)}</div>`;
+  });
+  document.getElementById('modBody').innerHTML=h;
+  document.getElementById('modOv').classList.add('open');
+}
+
+/* =====================================================
+   集計
+   ===================================================== */
+function renderStats(){
+  const pane=document.getElementById('p-stats');
+  if(!records.length){pane.innerHTML='<div class="empty">'+L('no_data')+'</div>';return}
+  let tOK=0,tNG=0,tNA=0,tDone=0;const ngMap={};
+  records.forEach(r=>{
+    ITEMS.forEach((item,idx)=>{
+      const v=(r.vals||{})[idx]||{};
+      ['D','N'].forEach(row=>{
+        let st;
+        if(item.tp==='numeric'){const val=row==='D'?v.Dv:v.Nv;const rng=chkR(item,val);st=rng==='in-range'?'OK':rng==='out-range'?'NG':null}
+        else{st=v[row]||null}
+        if(st==='OK'){tOK++;tDone++}else if(st==='NG'){tNG++;tDone++;ngMap[iN(item)]=(ngMap[iN(item)]||0)+1}else if(st==='NA'){tNA++;tDone++}
+      });
+    });
+  });
+  const okR=tDone?Math.round(tOK/tDone*100):0;
+  const dF=records.length?records[records.length-1].date:'';
+  const dT=records.length?records[0].date:'';
+  const span=dF===dT?dT.replace(/-/g,'/'):dF.replace(/-/g,'/')+'~'+dT.replace(/-/g,'/');
+  const ngS=Object.entries(ngMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxNG=ngS.length?ngS[0][1]:1;
+
+  let h=`<div class="sgrid">
+    <div class="scard"><div class="slbl">${L('s_total')}</div><div class="sval">${records.length}</div><div class="ssub">${L('s_times')}</div></div>
+    <div class="scard"><div class="slbl">${L('s_ok')}</div><div class="sval" style="color:var(--green)">${okR}%</div><div class="ssub">${tOK}/${tDone}</div></div>
+    <div class="scard"><div class="slbl">${L('s_ng')}</div><div class="sval" style="color:var(--red)">${tNG}</div><div class="ssub">${L('s_need')}</div></div>
+    <div class="scard"><div class="slbl">${L('s_period')}</div><div class="sval" style="font-size:13px;margin-top:4px">${span||'—'}</div></div>
+  </div>`;
+  if(ngS.length){
+    h+=`<div class="card"><div class="ctitle">${L('s_top')} ${ngS.length}</div>`;
+    ngS.forEach(([name,cnt])=>{
+      const pct=Math.round(cnt/maxNG*100);
+      h+=`<div class="ngwrap"><div class="ngrow"><span>${name}</span><span class="ngcnt">${LANG==='ja'?'NG '+cnt+'回':'Bất thường '+cnt+' lần'}</span></div><div class="ngbar"><div class="ngfill" style="width:${pct}%"></div></div></div>`;
+    });
+    h+='</div>';
+  }
+  h+=`<div class="card"><div class="ctitle">${L('s_recent')}</div>`;
+  records.slice(0,5).forEach(r=>{
+    const s=sumRec(r);
+    h+=`<div class="hitem" onclick="openDet(${r.id})">
+      <div style="display:flex;justify-content:space-between">
+        <span class="hdate" style="font-size:13px">${r.date.replace(/-/g,'/')}</span>
+        <span style="font-size:12px;color:var(--muted)">${escH(r.op||'—')}</span>
+      </div>
+      <div class="badges" style="margin-top:6px">
+        <span class="badge bok">${LANG==='ja'?'OK':'Bình thường'} ${s.ok}</span>
+        ${s.ng?`<span class="badge bng">${LANG==='ja'?'NG':'Bất thường'} ${s.ng}</span>`:''}
+      </div>
+    </div>`;
+  });
+  h+='</div>';
+  h+=`<button class="weeklybtn" onclick="openWM()" style="margin-top:10px">${L('btn_weekly')}</button>`;
+  h+=`<button class="expbtn" onclick="exportExcel()">${L('s_export')}</button>`;
+  pane.innerHTML=h;
+}
+
+/* =====================================================
+   共有 & QR
+   ===================================================== */
+function renderShare(){
+  const pane=document.getElementById('p-share');
+  const appURL=location.href.split('#')[0];
+  pane.innerHTML=`
+  <div class="card" style="margin-bottom:10px">
+    <div class="ctitle">📷 ${L('qr_title')}</div>
+    <div style="padding:16px;text-align:center">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">${L('qr_desc')}</p>
+      <div id="qrbox" style="display:inline-block;padding:12px;background:white;border:1.5px solid var(--border);border-radius:12px">
+        <div id="qrload" style="width:200px;height:200px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px">${LANG==='ja'?'生成中...':'Đang tạo...'}</div>
+      </div>
+      <p style="font-size:12px;color:var(--text);margin-top:10px">${records.length} ${LANG==='ja'?'件の記録':'bản ghi'}</p>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="ctitle">🔗 ${L('link_title')}</div>
+    <div style="padding:12px">
+      <textarea class="surl" rows="2" readonly id="surl">${appURL}</textarea>
+      <button class="scopy" onclick="copyURL()">${L('copy')}</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="ctitle">📋 ${L('w_history')}</div>
+    <div id="wh-cont" style="padding:8px 14px"></div>
+  </div>`;
+
+  // 週次確認履歴
+  const wc=document.getElementById('wh-cont');
+  if(wc){
+    if(!weekly.length){wc.innerHTML=`<p style="font-size:12px;color:var(--muted);padding:4px 0">${L('w_none')}</p>`}
+    else{
+      let wh='';
+      weekly.slice(0,10).forEach(w=>{
+        wh+=`<div class="wl-item"><span>${w.date.replace(/-/g,'/')}</span><span class="wbadge">${w.week}</span><span style="font-weight:600">${escH(w.name)}</span></div>`;
+      });
+      wc.innerHTML=wh;
+    }
+  }
+
+  // QRコード生成
+  setTimeout(async()=>{
+    const box=document.getElementById('qrbox');if(!box)return;
+    try{
+      if(!window.QRCode){
+        await new Promise((res,rej)=>{
+          const s=document.createElement('script');
+          s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+          s.onload=res;s.onerror=rej;document.head.appendChild(s);
+        });
+      }
+      const ld=document.getElementById('qrload');if(ld)ld.remove();
+      new QRCode(box,{text:appURL,width:200,height:200,colorDark:'#1a5fa8',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+    }catch(e){
+      const ld=document.getElementById('qrload');
+      if(ld)ld.textContent=LANG==='ja'?'QRコード生成失敗。下のリンクをコピーしてください':'Không tải được QR. Copy link bên dưới';
+    }
+  },200);
+}
+
+function copyURL(){
+  const el=document.getElementById('surl');if(!el)return;
+  navigator.clipboard.writeText(el.value).then(()=>showToast(L('copied'))).catch(()=>{el.select();document.execCommand('copy');showToast(L('copied'))});
+}
+
+/* =====================================================
+   Excel出力
+   ===================================================== */
+async function exportExcel(){
+  const isJA = LANG==='ja';
+
+  // データ収集
+  migrateOldData();
+  const exportMode = currentMode;
+  const _eqMap = getActiveEquipment();
+
+  // localStorage から有データ設備を収集
+  const hasData = Object.keys(_eqMap).filter(k=>{
+    try{ return JSON.parse(localStorage.getItem(eqStKey(k))||'[]').length>0; }
+    catch(e){ return false; }
+  });
+
+  // 現在セッションのデータも対象に
+  const targets = hasData.length>0 ? hasData : (currentEquipment?[currentEquipment]:[]);
+  if(targets.length===0 && records.length===0){
+    showToast(L('ex_fail')); return;
+  }
+
+  showToast(isJA?'Excel生成中...':'Đang tạo Excel...');
+
+  // ExcelJS ロード
+  if(!window.ExcelJS){
+    try{
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+        s.onload=res; s.onerror=()=>rej(new Error('CDN load failed'));
+        document.head.appendChild(s);
+      });
+    }catch(e){
+      showToast(isJA?'ExcelJS読み込み失敗。ネット接続を確認してください':'Lỗi tải ExcelJS');
+      return;
+    }
+  }
+
+  try{
+    const wb = new ExcelJS.Workbook();
+    let sheetCount = 0;
+
+    // 処理対象リスト（currentEquipmentも含める）
+    const allTargets = new Set(targets);
+    if(currentEquipment && records.length>0) allTargets.add(currentEquipment);
+
+    for(const eqKey of allTargets){
+      const eq = _eqMap[eqKey];
+      if(!eq) continue;
+
+      // レコード取得（セッション中のデータ or localStorage）
+      let eqRecs = JSON.parse(localStorage.getItem(eqStKey(eqKey))||'[]');
+      if(eqRecs.length===0 && eqKey===currentEquipment && records.length>0) eqRecs=records;
+      if(!eqRecs.length) continue;
+
+      const eqWeekly = JSON.parse(localStorage.getItem(eqWkKey(eqKey))||'[]');
+      const eqItems  = exportMode==='jig' ? (JIG_DEF[eq.op]||[]) : (DEF[eq.op]||DEF['OP20/30']);
+
+      const ld=eqRecs[0].date;
+      const[yyyy,mm]=ld.split('-');
+      const dim=new Date(+yyyy,+mm,0).getDate();
+      const lr=eqRecs[0];
+
+      // 日別マップ
+      const dmD={},dmN={},dm={};
+      [...eqRecs].reverse().forEach(r=>{
+        if(!r.date.startsWith(yyyy+'-'+mm)) return;
+        const d=+r.date.split('-')[2];
+        if(r.shift==='N'){ if(!dmN[d]) dmN[d]=r; }
+        else              { if(!dmD[d]) dmD[d]=r; }
+        if(!dm[d]) dm[d]=r;
+      });
+      const wkMap={};
+      eqWeekly.forEach(w=>{
+        if(w.date.startsWith(yyyy+'-'+mm)){
+          const wn=Math.ceil(+w.date.split('-')[2]/7);
+          if(!wkMap[wn]) wkMap[wn]=w.name;
+        }
+      });
+
+      const sheetName=(isJA?eq.title:eq.titleVn).replace(/[*?:\\/\[\]]/g,'-').slice(0,31);
+      const ws=wb.addWorksheet(sheetName,{
+        pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1},
+        views:[{showGridLines:false}]
+      });
+      sheetCount++;
+
+      // 列幅設定
+      [4.5,20,14,5,9,8,3.5].forEach((w,i)=>ws.getColumn(i+1).width=w);
+      for(let d=1;d<=dim;d++) ws.getColumn(8+d-1).width=3.8;
+      const LC=8+dim-1;
+
+      // ヘルパー
+      const tb={style:'thin'};const B={top:tb,bottom:tb,left:tb,right:tb};
+      const F=(bold,sz,color='FF000000')=>({bold,size:sz,color:{argb:color},name:'Arial'});
+      const A=(h='center',v='middle')=>({horizontal:h,vertical:v,wrapText:true});
+      const FI=(a)=>({type:'pattern',pattern:'solid',fgColor:{argb:a}});
+      function W(r,col,v,o){
+        const cell=ws.getCell(r,col);cell.value=v;
+        if(o){if(o.f)cell.font=o.f;if(o.fi)cell.fill=o.fi;if(o.a)cell.alignment=o.a;if(o.b)cell.border=o.b;if(o.n)cell.numFmt=o.n;}
+      }
+      function MG(r1,c1,r2,c2){try{ws.mergeCells(r1,c1,r2,c2);}catch(e){}}
+
+      const NAVY='FF1F3864',LB='FFBDD7EE';
+
+      // 行高さ
+      ws.getRow(1).height=4; ws.getRow(2).height=24; ws.getRow(3).height=4;
+      ws.getRow(4).height=14; ws.getRow(5).height=14; ws.getRow(6).height=14;
+      ws.getRow(7).height=20; ws.getRow(8).height=13; ws.getRow(9).height=13;
+
+      // Row2: タイトル
+      const xlKind=exportMode==='jig'?(isJA?'治具点検チェックシート':'Checksheet kiểm tra đồ gá'):(isJA?'設備点検チェックシート':'Checksheet kiểm tra thiết bị');
+      MG(2,1,2,7);
+      W(2,1,`  ${yyyy}年${mm}月度　${xlKind}`,{f:F(true,13,'FFFFFFFF'),fi:FI(NAVY.slice(2)),a:A('left')});
+      MG(2,8,2,LC);
+      W(2,8,isJA?`作成 ${yyyy}年${mm}月01日`:`Lập ngày 01/${mm}/${yyyy}`,{f:F(false,8),a:A('right','middle')});
+
+      // Row4-6: 基本情報
+      MG(4,2,4,5); MG(4,7,4,7);
+      W(4,1,isJA?'LINE':'LINE',{f:F(true,8),fi:FI(LB.slice(2)),a:A(),b:B});
+      W(4,2,getLineName(eqKey,isJA),{f:F(false,9),fi:FI('FFFAFAFA'),a:A('left'),b:B});
+      W(4,6,isJA?'所属':'Trực thuộc',{f:F(true,8),fi:FI(LB.slice(2)),a:A(),b:B});
+      W(4,7,eq.dept||'OVT',{f:F(false,9),fi:FI('FFFAFAFA'),a:A('left'),b:B});
+      MG(5,2,5,7);
+      W(5,1,isJA?'工程名':'Tên CĐ',{f:F(true,8),fi:FI(LB.slice(2)),a:A(),b:B});
+      W(5,2,isJA?eq.procJa:eq.procVn,{f:F(false,9),fi:FI('FFFAFAFA'),a:A('left'),b:B});
+      MG(6,2,6,7);
+      W(6,1,isJA?'担当者':'Người p.trách',{f:F(true,8),fi:FI(LB.slice(2)),a:A(),b:B});
+      W(6,2,lr.op||'',{f:F(false,9),fi:FI('FFFAFAFA'),a:A('left'),b:B});
+
+      // Row7: 列ヘッダー
+      [[1,isJA?'№':'No.'],[2,isJA?'点検項目':'Hạng mục'],[3,isJA?'基準':'Tiêu chuẩn'],
+       [4,isJA?'周期':'Chu kỳ'],[5,isJA?'方法':'Phương thức'],[6,isJA?'備考':'Ghi chú'],[7,isJA?'直':'Ca']
+      ].forEach(([col,lbl])=>W(7,col,lbl,{f:F(true,8,'FFFFFFFF'),fi:FI(NAVY.slice(2)),a:A(),b:B}));
+      for(let d=1;d<=dim;d++){
+        const wd=new Date(+yyyy,+mm-1,d).getDay();
+        W(7,8+d-1,d,{f:F(true,7,'FFFFFFFF'),fi:FI(wd===0?'FFC00000':wd===6?'FF4472C4':NAVY.slice(2)),a:A(),b:B});
+      }
+
+      // Row8/9: 担当者（昼/夜）
+      MG(8,1,8,7); W(8,1,isJA?'昼番担当者':'Ca ngày (D)',{f:F(true,8,'FF7B4F00'),fi:FI('FFFFF8E1'),a:A('left'),b:B});
+      MG(9,1,9,7); W(9,1,isJA?'夜番担当者':'Ca đêm (N)', {f:F(true,8,'FF1A237E'),fi:FI('FFE8EAF6'),a:A('left'),b:B});
+      for(let d=1;d<=dim;d++){
+        const wd=new Date(+yyyy,+mm-1,d).getDay();
+        const dBg=wd===0?'FFFDE8C0':wd===6?'FFDCE8F9':'FFFFF8E1';
+        const nBg=wd===0?'FFFDE4EC':wd===6?'FFD9E8F5':'FFE8EAF6';
+        W(8,8+d-1,dmD[d]?dmD[d].op||'':'',{f:F(false,7,'FF7B4F00'),fi:FI(dBg),a:A(),b:B});
+        W(9,8+d-1,dmN[d]?dmN[d].op||'':'',{f:F(false,7,'FF1A237E'),fi:FI(nBg),a:A(),b:B});
+      }
+
+      // 点検項目
+      const BR=10;
+      eqItems.forEach((item,idx)=>{
+        const rD=BR+idx*3,rN=BR+idx*3+1,rS=BR+idx*3+2;
+        ws.getRow(rD).height=15; ws.getRow(rN).height=13; ws.getRow(rS).height=3;
+        const nm=isJA?item.ja:item.vn, cr=isJA?item.cja:item.cvn;
+        const pr=isJA?item.pja:item.pvn, mt=isJA?item.mja:item.mvn;
+        const nt=isJA?(item.aja||''):(item.avn||'');
+        [[1,item.lb,true],[2,nm,false],[3,cr,false],[4,pr,false],[5,mt,false],[6,nt,false]].forEach(([col,val,bold])=>{
+          MG(rD,col,rN,col);
+          W(rD,col,val,{f:F(bold,9),fi:FI('FFF2F2F2'),a:col===2?A('left'):A(),b:B});
+        });
+        W(rD,7,'D',{f:F(true,8,'FF1F3864'),fi:FI('FFEBF3FB'),a:A(),b:B});
+        W(rN,7,'N',{f:F(true,8,'FF3949AB'),fi:FI('FFF4F9FF'),a:A(),b:B});
+        for(let d=1;d<=dim;d++){
+          const wd=new Date(+yyyy,+mm-1,d).getDay();
+          const dBg=wd===0?'FFFDECEA':wd===6?'FFDEE8F7':'FFEBF3FB';
+          const nBg=wd===0?'FFFEF4F3':wd===6?'FFEAF0FB':'FFF4F9FF';
+          const rv=dm[d]?(dm[d].vals||{})[idx]||{}:{};
+          let dV='',nV='';
+          if(item.tp==='numeric'){
+            dV=rv.Dv!==undefined&&rv.Dv!==''?parseFloat(rv.Dv):'';
+            nV=rv.Nv!==undefined&&rv.Nv!==''?parseFloat(rv.Nv):'';
+          }else{
+            const f=s=>s==='OK'?'○':s==='NG'?'✕':s==='NA'?'－':'';
+            dV=f(rv.D); nV=f(rv.N);
+          }
+          const inR=x=>typeof x==='number'?x>=(item.min||0)&&x<=(item.max||99999):null;
+          const fmt=item.dec===2?'0.00':'0.0';
+          W(rD,8+d-1,dV,{f:F(true,9,inR(dV)===true?'FF00B050':inR(dV)===false?'FFFF0000':'FF000000'),fi:FI(dBg),a:A(),b:B,n:typeof dV==='number'?fmt:'@'});
+          W(rN,8+d-1,nV,{f:F(false,8,inR(nV)===true?'FF00B050':inR(nV)===false?'FFFF0000':'FF1F3864'),fi:FI(nBg),a:A(),b:B,n:typeof nV==='number'?fmt:'@'});
+        }
+        for(let col=1;col<=LC;col++){ws.getCell(rS,col).fill=FI('FFE8E8E8');ws.getCell(rS,col).border={bottom:{style:'thin',color:{argb:'FFAAAAAA'}}};}
+      });
+
+      // 備考行
+      const lR=BR+eqItems.length*3-1;
+      const ssR=lR+2; ws.getRow(ssR).height=18;
+      MG(ssR,1,ssR,6); W(ssR,1,isJA?'備考':'Ghi chú',{f:F(true,10),fi:FI(LB.slice(2)),a:A('left'),b:B});
+      MG(ssR,7,ssR,LC); W(ssR,7,'',{fi:FI('FFFFFFFF'),b:B});
+
+      // 週次確認
+      ws.getRow(ssR+2).height=18;
+      MG(ssR+2,1,ssR+2,7);
+      W(ssR+2,1,isJA?'【週次上司確認】':'【Xác nhận tuần】',{f:F(true,9,'FFFFFFFF'),fi:FI('FF3949AB'),a:A('left'),b:B});
+      const wkSp=Math.floor(dim/5);
+      for(let w=1;w<=5;w++){
+        const c1=8+(w-1)*wkSp, c2=w===5?LC:8+w*wkSp-1;
+        if(c1>c2) continue;
+        MG(ssR+2,c1,ssR+2,c1+1);
+        W(ssR+2,c1,isJA?`第${w}週`:`Tuần ${w}`,{f:F(true,8,'FFFFFFFF'),fi:FI('FF5C6BC0'),a:A(),b:B});
+        if(c1+2<=c2){ MG(ssR+2,c1+2,ssR+2,c2); }
+        W(ssR+2,c1+2,wkMap[w]||'',{f:F(false,9),fi:FI('FFFFFFFF'),a:A('left'),b:B});
+      }
+
+      ws.views=[{state:'frozen',xSplit:7,ySplit:BR-1,showGridLines:false}];
+    } // end for each equipment
+
+    if(sheetCount===0){ showToast(L('ex_fail')); return; }
+
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const now=new Date();
+    const y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0');
+    const fn=exportMode==='jig'?(isJA?`治具点検_${y}年${m}月.xlsx`:`JIG_${y}_${m}.xlsx`):(isJA?`設備点検_${y}年${m}月.xlsx`:`KiemTra_${y}_${m}.xlsx`);
+    const a=document.createElement('a');
+    a.style.display='none'; a.href=url; a.download=fn;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },300);
+    showToast(isJA?`Excel出力完了 (${sheetCount}シート) ✓`:`Xuất Excel ${sheetCount} sheet ✓`);
+
+  }catch(err){
+    console.error('exportExcel error:',err);
+    alert('Excel出力エラー:\n'+(err&&err.message?err.message:String(err)));
+    showToast('Excel出力エラー: '+(err&&err.message?err.message.slice(0,40):String(err).slice(0,40)));
+  }
+}
+
+/* =====================================================
+   Toast
+   ===================================================== */
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+/* =====================================================
+   起動
+   ===================================================== */
+
+/* =====================================================
+   旧データ移行（tenken_vn_v1 → 設備別キー）
+   ===================================================== */
+function migrateOldData(){
+  const OLD_SK='tenken_vn_v1', OLD_WK='tenken_weekly_v1';
+  const newSK=eqStorageKey('11Line_OP20/30');
+  const newWK=eqWeeklyKey('11Line_OP20/30');
+  try{
+    // レコードの移行
+    const oldRecs=localStorage.getItem(OLD_SK);
+    if(oldRecs&&oldRecs!=='[]'){
+      const newRecs=localStorage.getItem(newSK)||'[]';
+      if(newRecs==='[]'){
+        // 旧データを新キーにコピー（op フィールドを追加）
+        const parsed=JSON.parse(oldRecs);
+        const migrated=parsed.map(r=>({
+          ...r,
+          op: r.op||r.opD||r.operator||'',
+          eqKey:'11Line_OP20/30'
+        }));
+        localStorage.setItem(newSK,JSON.stringify(migrated));
+        console.log('Migrated',migrated.length,'records to',newSK);
+      }
+    }
+    // 週次確認の移行
+    const oldWk=localStorage.getItem(OLD_WK);
+    if(oldWk&&oldWk!=='[]'){
+      if(!localStorage.getItem(newWK)||localStorage.getItem(newWK)==='[]'){
+        localStorage.setItem(newWK,oldWk);
+      }
+    }
+  }catch(e){console.warn('Migration error:',e)}
+}
+
+(function init(){
+  // 旧データ移行
+  migrateOldData();
+  // ロック中チェック
+  if(isLocked()){
+    const btn=document.getElementById('lbtn');if(btn)btn.disabled=true;
+    showLoginErr('Bị khóa. Thử lại sau '+lockSec()+'s');
+    const timer=setInterval(()=>{
+      if(!isLocked()){clearInterval(timer);const b=document.getElementById('lbtn');if(b)b.disabled=false;showLoginErr('')}
+      else{showLoginErr('Bị khóa. Thử lại sau '+lockSec()+'s')}
+    },1000);
+  }
+  // 言語ボタン初期化
+  const lb=document.getElementById('langbtn');
+  if(lb)lb.textContent=LANG==='vn'?'日本語':'Tiếng Việt';
+  // ログイン済みチェック
+  if(isLoggedIn()){startApp();return}
+  setTimeout(()=>{const u=document.getElementById('lu');if(u)u.focus()},100);
+})();
+
+/* =====================================================
+   ═══ FIREBASE REALTIME DATABASE – ĐỒNG BỘ DỮ LIỆU ═══
+   Hướng dẫn: Điền thông tin Firebase project của bạn bên dưới.
+   ===================================================== */
+const FB_CONFIG = {
+  apiKey:            "AIzaSyCEh5ZSTYIVZh7vDTzFXdyxM1zSFMdetNg",
+  authDomain:        "checksheet-8561a.firebaseapp.com",
+  databaseURL:       "https://checksheet-8561a-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "checksheet-8561a",
+  storageBucket:     "checksheet-8561a.firebasestorage.app",
+  messagingSenderId: "240684462760",
+  appId:             "1:240684462760:web:c5f14c2d05e3d65aee089d"
+};
+
+let fbDb = null;
+let fbReady = false;
+const FB_ROOT = 'checkdata';
+
+function initFirebase() {
+  try {
+    if (!FB_CONFIG.databaseURL || FB_CONFIG.databaseURL.includes('PASTE_YOUR')) {
+      console.warn('[Firebase] Chưa cấu hình – chỉ dùng localStorage.');
+      return false;
+    }
+    if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+    fbDb = firebase.database();
+    fbReady = true;
+    console.log('[Firebase] Kết nối thành công ✓');
+    return true;
+  } catch(e) {
+    console.error('[Firebase] Lỗi khởi tạo:', e);
+    return false;
+  }
+}
+
+function fbWrite(storageKey, dataArr) {
+  if (!fbReady || !fbDb) return;
+  fbDb.ref(FB_ROOT + '/' + storageKey).set(dataArr)
+    .catch(e => console.warn('[Firebase] Lỗi ghi:', e));
+}
+
+// Firebase trả về object {0:..., 1:...} thay vì array → cần chuyển lại
+function fbToArr(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'object') return Object.values(val);
+  return [];
+}
+async function syncFromFirebase() {
+  if (!fbReady || !fbDb) return;
+  try {
+    const snap = await fbDb.ref(FB_ROOT).get();
+    if (snap.exists()) {
+      const data = snap.val();
+      let count = 0;
+      Object.keys(data).forEach(k => {
+        const arr = fbToArr(data[k]);
+        if (arr.length >= 0) { localStorage.setItem(k, JSON.stringify(arr)); count++; }
+      });
+      console.log('[Firebase] Đồng bộ', count, 'key(s) ✓');
+    }
+  } catch(e) { console.warn('[Firebase] Lỗi sync:', e); }
+}
+
+function setupRealtimeListener() {
+  if (!fbReady || !fbDb) return;
+  fbDb.ref(FB_ROOT).on('value', snap => {
+    if (!snap.exists()) return;
+    const data = snap.val();
+    Object.keys(data).forEach(k => {
+      const cloudArr = fbToArr(data[k]);
+      const localArr = JSON.parse(localStorage.getItem(k)||'[]');
+      const cloudId = cloudArr.length ? (cloudArr[0].id||0) : 0;
+      const localId = localArr.length ? (localArr[0].id||0) : 0;
+      if (cloudArr.length !== localArr.length || cloudId !== localId) {
+        localStorage.setItem(k, JSON.stringify(cloudArr));
+        if (currentEquipment) {
+          if (k === eqStKey(currentEquipment)) { records = cloudArr; showToast('🔄 Dữ liệu cập nhật từ máy khác'); }
+          if (k === eqWkKey(currentEquipment)) { weekly = cloudArr; }
+        }
+        console.log('[Firebase] Real-time update:', k);
+      }
+    });
+  }, e => console.warn('[Firebase] Lỗi listener:', e));
+}
+
+function showSyncOverlay(show, msg) {
+  let el = document.getElementById('fb-sync-overlay');
+  if (!el && show) {
+    el = document.createElement('div');
+    el.id = 'fb-sync-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(26,95,168,0.93);display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:inherit;gap:16px;';
+    el.innerHTML = `<div style="font-size:36px">☁️</div>
+      <div id="fb-sync-msg" style="font-size:15px;font-weight:600;">${msg||'Đang đồng bộ...'}</div>
+      <div style="width:200px;height:4px;background:rgba(255,255,255,0.3);border-radius:4px;overflow:hidden;">
+        <div style="width:55%;height:100%;background:white;border-radius:4px;animation:fbsl 1.2s ease-in-out infinite alternate;"></div>
+      </div>
+      <style>@keyframes fbsl{from{transform:translateX(-80%)}to{transform:translateX(200%)}}</style>`;
+    document.body.appendChild(el);
+  } else if (el) {
+    const m = el.querySelector('#fb-sync-msg'); if (m && msg) m.textContent = msg;
+    el.style.display = show ? 'flex' : 'none';
+  }
+}
+
+async function syncAndStart() {
+  const ok = initFirebase();
+  if (ok) {
+    showSyncOverlay(true, LANG==='ja' ? 'データを同期中...' : 'Đang đồng bộ dữ liệu...');
+    await syncFromFirebase();
+    showSyncOverlay(false);
+    setupRealtimeListener();
+  }
+  if(autoOpenFromQR()) return;
+  showHome();
+}
+
+</script>
+</body>
+</html>
